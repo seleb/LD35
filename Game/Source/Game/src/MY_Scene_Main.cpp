@@ -120,7 +120,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 			jointDef.collideConnected = false;
 			jointDef.localAnchorA = b2Vec2(glm::cos(angle) * d1*0.25f, glm::sin(angle) * d1*0.25f);
 			jointDef.localAnchorB = b2Vec2(glm::cos(angle) * d2*-0.25f, glm::sin(angle) * d2*-0.25f);
-			box2dWorld->b2world->CreateJoint(&jointDef);
+			player->limbs.back().joints.push_back(box2dWorld->b2world->CreateJoint(&jointDef));
 		
 			prev = next;
 			d1 = d2;
@@ -220,6 +220,12 @@ void MY_Scene_Main::update(Step * _step){
 		//d = glm::normalize(d);
 
 		player->applyLinearImpulseToCenter(d*0.5f);
+	}
+
+
+
+	if(mouse->rightJustPressed()){
+		player->breakLimb();
 	}
 }
 
