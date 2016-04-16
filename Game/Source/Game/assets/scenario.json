@@ -1,3 +1,28 @@
 {
-  "assets": []
+  "assets": [
+  	{
+  		"type": "texture",
+  		"id": "limb",
+  		"src": "limb.png",
+  		"generateMipmaps":false
+  	},
+  	{
+  		"type": "texture",
+  		"id": "limbend",
+  		"src": "limbend.png",
+  		"generateMipmaps":false
+  	},
+  	{
+  		"type": "texture",
+  		"id": "limbend-closed",
+  		"src": "limbend-closed.png",
+  		"generateMipmaps":false
+  	},
+  	{
+  		"type": "texture",
+  		"id": "body",
+  		"src": "body.png",
+  		"generateMipmaps":false
+  	}
+  ]
 }
