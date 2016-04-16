@@ -199,22 +199,24 @@ void MY_Scene_Main::update(Step * _step){
 	}
 	
 	glm::vec3 bodyPos = player->getPhysicsBodyCenter();
-	if(!mouse->leftDown()){
-		for(auto l : player->limbs){
-			glm::vec3 limbPos = l.segments.back()->getPhysicsBodyCenter();
+	for(auto l : player->limbs){
+		glm::vec3 limbPos = l.segments.back()->getPhysicsBodyCenter();
 
-			glm::vec3 d = mousePos - limbPos;
-			d.z = 0;
+		glm::vec3 d = mousePos - limbPos;
+		d.z = 0;
 
-			glm::vec3 d2 = bodyPos - limbPos;
-			d2.z = 0;
-			d2 /= 15.f;
-			//d = glm::normalize(d);
-
+		glm::vec3 d2 = bodyPos - limbPos;
+		d2.z = 0;
+		d2 /= 15.f;
+		//d = glm::normalize(d);
+			
+		if(!mouse->leftDown()){
 			l.segments.back()->applyLinearImpulseToCenter(d/(float)player->limbs.size() * glm::length(d2));
 		}
-	}else{
 
+		l.segments.back()->body->SetTransform(l.segments.back()->body->GetWorldCenter(), -glm::atan(d.x, d.y));
+	}
+	if(mouse->leftDown()){
 		glm::vec3 d = mousePos - bodyPos;
 		d.z = 0;
 		//d = glm::normalize(d);
