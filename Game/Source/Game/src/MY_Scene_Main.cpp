@@ -15,6 +15,8 @@
 #include <shader/ShaderComponentTexture.h>
 #include <shader/ShaderComponentWorldSpaceUVs.h>
 
+#include <Player.h>
+
 MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	MY_Scene_Base(_game),
 	box2dWorld(new Box2DWorld(b2Vec2(0.f, 0.0f))),
@@ -52,7 +54,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	float d1 = 2, d2 = 1.f;
 
 	// Setup the player
-	player = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("body")->texture, 1, 1);
+	player = new Player(box2dWorld, baseShader);
 	player->mesh->setScaleMode(GL_NEAREST);
 	player->meshTransform->scale(d1);
 	//player->createFixture(); // when we're using a Box2DSprite, createFixture will make a collider which matches the provided width and height of the sprite (note that this is different from the actual texture size)

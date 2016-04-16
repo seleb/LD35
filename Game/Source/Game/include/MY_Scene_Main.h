@@ -6,6 +6,7 @@ class Box2DWorld;
 class Box2DDebugDrawer;
 class Box2DSprite;
 class Box2DMeshEntity;
+class Player;
 
 typedef enum{
 	kGROUND = (1 << 1),
@@ -35,7 +36,7 @@ public:
 	//
 	// In this scene, we are using a Box2DSprite to represent a player object
 	// In order to control the player object, we will be treating it as a rigid body and applying forces/impulses
-	Box2DSprite * player;
+	Player * player;
 	std::vector<Box2DSprite * > limbEnds;
 	// Similar to the Box2DMeshSprite, Box2DMeshEntity is a class which combines a Box2D physics node and a standard MeshEntity
 	//
