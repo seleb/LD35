@@ -216,7 +216,7 @@ void MY_Scene_Main::update(Step * _step){
 
 		l.segments.back()->body->SetTransform(l.segments.back()->body->GetWorldCenter(), -glm::atan(d.x, d.y));
 	}
-	if(mouse->leftDown()){
+	if(mouse->leftDown() && player->limbs.size() > 0){
 		glm::vec3 d = mousePos - bodyPos;
 		d.z = 0;
 		//d = glm::normalize(d);
