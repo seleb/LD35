@@ -79,6 +79,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	for(unsigned long int i = 0; i < numLimbs; ++i){
 		float angle = (float)i/numLimbs * glm::pi<float>()*2.f;
 
+		player->limbs.push_back(Limb());
 
 
 		Box2DSprite * prev = player;
@@ -87,7 +88,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 			Box2DSprite * next = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("limb")->texture, d2, d2);
 			next->meshTransform->scale(d2);
 			if(i == numSegments-1){
-				limbEnds.push_back(next);
+				player->limbs.back().segments.push_back(next);
 				next->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
 			}
 
@@ -184,23 +185,23 @@ void MY_Scene_Main::update(Step * _step){
 
 	
 	if(mouse->leftJustPressed()){
-		for(auto s : limbEnds){
-			s->body->SetType(b2_staticBody);
-			s->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend-closed")->texture);
+		for(auto l : player->limbs){
+			l.segments.back()->body->SetType(b2_staticBody);
+			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend-closed")->texture);
 			//s->body->SetLinearDamping(1000);
 		}
 	}else if(mouse->leftJustReleased()){
-		for(auto s : limbEnds){
-			s->body->SetType(b2_dynamicBody);
-			s->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
+		for(auto l : player->limbs){
+			l.segments.back()->body->SetType(b2_dynamicBody);
+			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
 			//s->body->SetLinearDamping(0);
 		}
 	}
 	
 	glm::vec3 bodyPos = player->getPhysicsBodyCenter();
 	if(!mouse->leftDown()){
-		for(auto s : limbEnds){
-			glm::vec3 limbPos = s->getPhysicsBodyCenter();
+		for(auto l : player->limbs){
+			glm::vec3 limbPos = l.segments.back()->getPhysicsBodyCenter();
 
 			glm::vec3 d = mousePos - limbPos;
 			d.z = 0;
@@ -210,7 +211,7 @@ void MY_Scene_Main::update(Step * _step){
 			d2 /= 15.f;
 			//d = glm::normalize(d);
 
-			s->applyLinearImpulseToCenter(d/(float)limbEnds.size() * glm::length(d2));
+			l.segments.back()->applyLinearImpulseToCenter(d/(float)player->limbs.size() * glm::length(d2));
 		}
 	}else{
 

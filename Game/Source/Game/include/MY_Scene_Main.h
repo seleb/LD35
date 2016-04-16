@@ -37,7 +37,6 @@ public:
 	// In this scene, we are using a Box2DSprite to represent a player object
 	// In order to control the player object, we will be treating it as a rigid body and applying forces/impulses
 	Player * player;
-	std::vector<Box2DSprite * > limbEnds;
 	// Similar to the Box2DMeshSprite, Box2DMeshEntity is a class which combines a Box2D physics node and a standard MeshEntity
 	//
 	// In this scene, we are using a Box2DMeshEntity to represent a ground object
