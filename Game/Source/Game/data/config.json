@@ -1,0 +1,23 @@
+{
+	"title": "S-Tengine2 Template Project",
+
+	"fps" : 60,
+	"fullscreen" : false,
+	"monitor": 0,
+	/*"resolution": {
+		"x": 1728,
+		"y": 972
+	},*/
+
+	"gain":{
+		"master": 1,
+		"music": 1,
+		"voice": 1,
+		"sfx": 1,
+		"other": 1
+	},
+	
+	"rngSeed": 0,
+	"nodeCounting": true,
+	"useLibOVR": false
+}
