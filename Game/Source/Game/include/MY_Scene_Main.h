@@ -14,9 +14,15 @@ typedef enum{
 } Box2D_Types;
 
 
+class ShaderComponentWorldSpaceUVs;
+
 // A sample scene showing some of the basics of integrating a Box2D physics simulation into a game scene
 class MY_Scene_Main : public MY_Scene_Base{
 public:
+	ComponentShaderBase * worldspaceShader;
+	ShaderComponentWorldSpaceUVs * uvComponent;
+
+
 	// The scene's physics world
 	Box2DWorld * box2dWorld;
 	// used to draw wireframes showing physics colliders, transforms, etc

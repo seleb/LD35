@@ -11,12 +11,25 @@
 
 #include <MeshFactory.h>
 
+#include <shader/ShaderComponentMVP.h>
+#include <shader/ShaderComponentTexture.h>
+#include <shader/ShaderComponentWorldSpaceUVs.h>
 
 MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	MY_Scene_Base(_game),
 	box2dWorld(new Box2DWorld(b2Vec2(0.f, 0.0f))),
 	box2dDebugDrawer(new Box2DDebugDrawer(box2dWorld))
 {
+	worldspaceShader = new ComponentShaderBase(true);
+	worldspaceShader->addComponent(new ShaderComponentMVP(worldspaceShader));
+	worldspaceShader->addComponent(new ShaderComponentTexture(worldspaceShader));
+	worldspaceShader->addComponent(uvComponent = new ShaderComponentWorldSpaceUVs(worldspaceShader));
+	uvComponent->xMultiplier = 0.05f;
+	uvComponent->yMultiplier = 0.05f;
+	//worldspaceShader->addComponent(new ShaderComponentDiffuse(worldspaceShader));
+	worldspaceShader->compileShader();
+	worldspaceShader->incrementReferenceCount();
+
 	// Setup the debug drawer and add it to the scene
 	childTransform->addChild(box2dDebugDrawer, false);
 	box2dDebugDrawer->drawing = false;
@@ -123,11 +136,20 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	cameras.push_back(gameCam);
 	childTransform->addChild(gameCam);
 	activeCamera = gameCam;
+	
+	MeshEntity * sky = new MeshEntity(MeshFactory::getPlaneMesh(), worldspaceShader);
+	sky->mesh->setScaleMode(GL_NEAREST);
+	sky->childTransform->rotate(90, 0,1,0, kOBJECT);
+	sky->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("bg")->texture);
+	gameCam->childTransform->addChild(sky)->scale(50);
+	sky->firstParent()->translate(50,0,0);
 
 	uiLayer->addMouseIndicator();
 }
 
 MY_Scene_Main::~MY_Scene_Main(){
+	worldspaceShader->decrementAndDelete();
+
 	// we need to destruct the scene elements before the physics world to avoid memory issues
 	deleteChildTransform();
 
@@ -183,7 +205,7 @@ void MY_Scene_Main::update(Step * _step){
 
 			glm::vec3 d2 = bodyPos - limbPos;
 			d2.z = 0;
-			d2 /= 10.f;
+			d2 /= 15.f;
 			//d = glm::normalize(d);
 
 			s->applyLinearImpulseToCenter(d/(float)limbEnds.size() * glm::length(d2));

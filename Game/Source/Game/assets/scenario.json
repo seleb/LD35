@@ -23,6 +23,12 @@
   		"id": "body",
   		"src": "body.png",
   		"generateMipmaps":false
+  	},
+  	{
+  		"type": "texture",
+  		"id": "bg",
+  		"src": "bg.png",
+  		"generateMipmaps":false
   	}
   ]
 }

@@ -28,7 +28,7 @@ MY_Scene_Base::MY_Scene_Base(Game * _game) :
 {
 	baseShader->addComponent(new ShaderComponentMVP(baseShader));
 	//baseShader->addComponent(new ShaderComponentDiffuse(baseShader));
-	baseShader->addComponent(new ShaderComponentTexture(baseShader));
+	baseShader->addComponent(new ShaderComponentTexture(baseShader, 0.001f));
 	baseShader->compileShader();
 	baseShader->name = "MY_Scene_Base base shader";
 
