@@ -5,7 +5,7 @@
 class RenderSurface;
 class StandardFrameBuffer;
 
-#define NUM_VERTS 256
+#define NUM_VERTS 128
 
 class MY_Scene_ScreenShaders : public MY_Scene_Base{
 public:
