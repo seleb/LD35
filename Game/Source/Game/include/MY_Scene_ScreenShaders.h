@@ -23,8 +23,9 @@ public:
 	std::vector<Bullet *> bullets;
 	NodeUI * heart;
 	float health;
-	Timeout * heartbeat;
+	Timeout * heartbeat, * shoot;
 	float heartBeatT;
+	bool shooting;
 
 	virtual void update(Step * _step) override;
 	virtual void render(sweet::MatrixStack * _matrixStack, RenderOptions * _renderOptions) override;

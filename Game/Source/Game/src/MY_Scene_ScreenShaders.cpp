@@ -16,7 +16,8 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	screenSurfaceShader(new Shader("assets/RenderSurface", false, true)),
 	screenSurface(new RenderSurface(screenSurfaceShader, true)),
 	screenFBO(new StandardFrameBuffer(true)),
-	health(1)
+	health(1),
+	shooting(false)
 {
 	// set-up some UI to toggle between results
 	//uiLayer->addMouseIndicator();
@@ -104,7 +105,19 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	childTransform->addChild(heartbeat, false);
 	heartbeat->start();
 
-
+	
+	shoot = new Timeout(0.32f, [this](sweet::Event * _event){	
+		shooting = !shooting;
+		if(shooting){
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 2.5f);
+		}else{
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 1.f);
+		}
+		shoot->restart();
+	});
+	
+	childTransform->addChild(shoot, false);
+	shoot->start();
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -205,9 +218,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 
 
 
-	if(_step->cycles % 6 == 0){
-		addBullet();
-	}
+	addBullet();
 
 	for(signed long int i = bullets.size()-1; i >= 0; --i){
 		Bullet * b = bullets.at(i);
@@ -302,22 +313,25 @@ void MY_Scene_ScreenShaders::unload(){
 }
 
 void MY_Scene_ScreenShaders::addBullet(){
-	static int i = 1;
-	static int dir = 1;
+	static float i = 1;
+	static float dir = 1;
 	static int offset = false;
 	static int lastSample = 0;
 	static int randomness = 1;
 	static int difficulty = 1;
+	static int bulletsFired = 0;
+	static int stagger = 1;
 
-	bool shoot = MY_ResourceManager::globalAssets->getAudio("bgm")->sound->getAmplitude() > 0.01f;
-	bool changeMode = (sweet::step.cycles % 60 <= difficulty) ? sweet::NumberUtils::randomBool() : false;
+	bulletsFired++;
 
-	difficulty = sweet::step.cycles / 1200;
+	bool changeMode = (bulletsFired % 60 <= difficulty) ? sweet::NumberUtils::randomBool() : false;
 
-	i += dir;
+	difficulty = glm::max(1, bulletsFired / 1200);
+
+	i += dir/6.f;
 	i += sweet::NumberUtils::randomInt(-randomness,randomness);
 
-	if(shoot){
+	if(shooting && bulletsFired % stagger == 0){
 		int idx = i;
 		idx += offset;
 		while(idx < 1){
@@ -338,8 +352,16 @@ void MY_Scene_ScreenShaders::addBullet(){
 	}
 		
 	if(changeMode){
-		dir = sweet::NumberUtils::randomInt(-difficulty, difficulty);
+		dir = sweet::NumberUtils::randomFloat(-difficulty, difficulty);
 		offset = sweet::NumberUtils::randomInt(-NUM_VERTS/4, NUM_VERTS/4);
 		randomness = sweet::NumberUtils::randomInt(0,difficulty);
+		if(dir == 0 && randomness == 0){
+			if(sweet::NumberUtils::randomBool()){
+				dir = sweet::NumberUtils::randomBool() ? -1 : 1;
+			}else{
+				randomness = 1;
+			}
+		}
+		stagger = sweet::NumberUtils::randomInt(1,3);
 	}
 }
