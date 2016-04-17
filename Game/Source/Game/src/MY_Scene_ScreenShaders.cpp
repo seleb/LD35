@@ -15,7 +15,8 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	MY_Scene_Base(_game),
 	screenSurfaceShader(new Shader("assets/RenderSurface", false, true)),
 	screenSurface(new RenderSurface(screenSurfaceShader, true)),
-	screenFBO(new StandardFrameBuffer(true))
+	screenFBO(new StandardFrameBuffer(true)),
+	health(1)
 {
 	// set-up some UI to toggle between results
 	//uiLayer->addMouseIndicator();
@@ -39,7 +40,7 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 		coords[i].y = 1.f;
 		damage[i] = 0;
 
-		meshThing->pushVert(Vertex(glm::cos(coords[i].x), glm::sin(coords[i].x), 0));
+		meshThing->pushVert(Vertex(0,0, 0));
 	}
 	meshThing->indices.push_back(1);
 
@@ -56,6 +57,54 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	for(auto & v : MY_ResourceManager::globalAssets->getMesh("bullet")->meshes.at(0)->vertices){
 		v.green = v.blue = 0;
 	}
+
+	
+	NodeUI * overlay = new NodeUI(uiLayer->world);
+	uiLayer->addChild(overlay);
+	overlay->setRationalHeight(1.f, uiLayer);
+	overlay->setSquareWidth(1.f);
+	overlay->background->mesh->setScaleMode(GL_NEAREST);
+	overlay->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("overlay")->texture);
+
+	heart = new NodeUI(uiLayer->world);
+	uiLayer->addChild(heart);
+	heart->setRationalHeight(1.f, uiLayer);
+	heart->setSquareWidth(1.f);
+	heart->background->mesh->setScaleMode(GL_NEAREST);
+	heart->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("heart")->texture);
+	
+	for(auto & v : heart->background->mesh->vertices){
+		v.x -= 0.5;
+		v.y -= 0.5;
+	}
+	heart->background->meshTransform->translate(0.5,0.5,0, false);
+
+	MY_ResourceManager::globalAssets->getAudio("bgm")->sound->play(true);
+
+
+	heartBeatT = 0;
+	heartbeat = new Timeout(0.32f, [this](sweet::Event * _event){	
+		health += 0.1f;
+		if(health > 1){
+			health = 1;
+		}
+		for(auto & d : damage){
+			d -= 0.1f;
+			if(d < 0){
+				d = 0;
+			}
+		}
+		heartbeat->restart();
+		heartBeatT = 0;
+	});
+	heartbeat->eventManager->addEventListener("progress", [this](sweet::Event * _event){
+		heartBeatT = _event->getFloatData("progress");
+	});
+	
+	childTransform->addChild(heartbeat, false);
+	heartbeat->start();
+
+
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -77,6 +126,11 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 	if(test != -1){
 		glUniform1f(test, _step->time);
 		checkForGlError(0);
+	}test = glGetUniformLocation(screenSurfaceShader->getProgramId(), "beat");
+	checkForGlError(0);
+	if(test != -1){
+		glUniform1f(test, heartBeatT);
+		checkForGlError(0);
 	}
 
 	
@@ -85,6 +139,13 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		screenSurfaceShader->unload();
 		screenSurfaceShader->loadFromFile(screenSurfaceShader->vertSource, screenSurfaceShader->fragSource);
 		screenSurfaceShader->load();
+	}
+
+	if(keyboard->keyJustDown(GLFW_KEY_R)){
+		health = 1.f;
+		for(auto & d : damage){
+			d = 0.f;
+		}
 	}
 #endif
 
@@ -131,7 +192,8 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		Vertex & v = meshThing->vertices.at(i+1);
 		v.x = glm::cos(coords[i].x) * coords[i].y;
 		v.y = glm::sin(coords[i].x) * coords[i].y;
-		v.green = v.blue = 1.f - damage[i];
+		v.blue = 1.f - damage[i];
+		v.green = (v.red + v.blue)*0.5f;
 		//v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
 		//v.blue = d;
 		//v.green = d;
@@ -162,9 +224,10 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 						b->polar->y -= 0.5f;
 						b->polar->y = glm::max(b->polar->y, 0.f);
 						damage[b->idx] += 0.25f;
+						// do a thing
+						health -= 0.05f;
 						if(damage[b->idx] > 1){
 							damage[b->idx] = 1.f;
-							// do a thing
 						}
 					}
 				}
@@ -188,8 +251,10 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		}
 	}
 
-
-
+	if(health < 0){
+		health = 0;
+	}
+	heart->background->meshTransform->scale(health+heartBeatT*0.1f, false);
 
 
 	// Scene update
@@ -198,7 +263,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 
 void MY_Scene_ScreenShaders::render(sweet::MatrixStack * _matrixStack, RenderOptions * _renderOptions){
 	// keep our screen framebuffer up-to-date with the current viewport
-	_renderOptions->setClearColour(0,0,0,0.5f);
+	_renderOptions->setClearColour(0,0,0,0.15f);
 	screenFBO->resize(_renderOptions->viewPortDimensions.width, _renderOptions->viewPortDimensions.height);
 
 	// bind our screen framebuffer
@@ -206,8 +271,10 @@ void MY_Scene_ScreenShaders::render(sweet::MatrixStack * _matrixStack, RenderOpt
 	// render the scene
 	glEnable(GL_LINE_SMOOTH);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	MY_Scene_Base::render(_matrixStack, _renderOptions);
+	_renderOptions->clear();
+	Scene::render(_matrixStack, _renderOptions);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	uiLayer->render(_matrixStack, _renderOptions);
 	// unbind our screen framebuffer, rebinding the previously bound framebuffer
 	// since we didn't have one bound before, this will be the default framebuffer (i.e. the one visible to the player)
 	FrameBufferInterface::popFbo();
@@ -217,7 +284,7 @@ void MY_Scene_ScreenShaders::render(sweet::MatrixStack * _matrixStack, RenderOpt
 	screenSurface->render(screenFBO->getTextureId(), false);
 
 	// render the uiLayer after the screen surface in order to avoid hiding it through shader code
-	uiLayer->render(_matrixStack, _renderOptions);
+	//uiLayer->render(_matrixStack, _renderOptions);
 }
 
 void MY_Scene_ScreenShaders::load(){
@@ -242,7 +309,7 @@ void MY_Scene_ScreenShaders::addBullet(){
 	static int randomness = 1;
 	static int difficulty = 1;
 
-	bool shoot = true;
+	bool shoot = MY_ResourceManager::globalAssets->getAudio("bgm")->sound->getAmplitude() > 0.01f;
 	bool changeMode = (sweet::step.cycles % 60 <= difficulty) ? sweet::NumberUtils::randomBool() : false;
 
 	difficulty = sweet::step.cycles / 1200;

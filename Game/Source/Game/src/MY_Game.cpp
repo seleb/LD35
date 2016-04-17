@@ -13,8 +13,11 @@
 #include <MY_Scene_VR.h>*/
 
 
+bool MY_Game::resized = false;
+
 MY_Game::MY_Game() :
-	Game("menu", new MY_Scene_ScreenShaders(this), true) // initialize our game with a menu scene
+	Game("menu", new MY_Scene_ScreenShaders(this), true), // initialize our game with a menu scene
+	lastSize(0)
 {
 	// initialize all of our scenes in the game's scene map for later use
 	// only the current scene is updated/rendered by default, so these shouldn't affect performance
@@ -36,4 +39,17 @@ void MY_Game::addSplashes(){
 
 	// add custom splashes
 	//addSplash(new Scene_Splash(this, MY_ResourceManager::globalAssets->getTexture("DEFAULT")->texture, MY_ResourceManager::globalAssets->getAudio("DEFAULT")->sound));
+}
+
+void MY_Game::update(Step * _step){
+	glm::uvec2 sd = sweet::getWindowDimensions();
+	int s = glm::min(sd.x, sd.y);
+	if(sd.x != sd.y && !sweet::config.fullscreen){
+		glfwSetWindowSize(sweet::currentContext, s, s);
+	}
+	if(s != lastSize){
+		resized = true;
+		lastSize = s;
+	}
+	Game::update(_step);
 }

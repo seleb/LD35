@@ -21,6 +21,10 @@ public:
 	PerspectiveCamera * gameCam;
 
 	std::vector<Bullet *> bullets;
+	NodeUI * heart;
+	float health;
+	Timeout * heartbeat;
+	float heartBeatT;
 
 	virtual void update(Step * _step) override;
 	virtual void render(sweet::MatrixStack * _matrixStack, RenderOptions * _renderOptions) override;
