@@ -8,6 +8,9 @@
 #include <NumberUtils.h>
 #include <Easing.h>
 
+#include <Bullet.h>
+#include <AutoMusic.h>
+
 MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	MY_Scene_Base(_game),
 	screenSurfaceShader(new Shader("assets/RenderSurface", false, true)),
@@ -32,22 +35,27 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	meshThing->pushVert(Vertex(0, 0, 0, 0, 0, 0, 1.f));
 
 	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
-		coords[i].x = ((float)i/NUM_VERTS) * glm::pi<float>() * 2.f;// - glm::pi<float>()/2.f;
+		coords[i].x = ((float)i/NUM_VERTS) * glm::pi<float>() * 2.f;
 		coords[i].y = 1.f;
+		damage[i] = 0;
 
 		meshThing->pushVert(Vertex(glm::cos(coords[i].x), glm::sin(coords[i].x), 0));
 	}
 	meshThing->indices.push_back(1);
 
-	glLineWidth(1);
+	glLineWidth(1.f);
 
 	gameCam = new PerspectiveCamera();
 	gameCam->yaw = -90;
 	gameCam->rotateVectors(gameCam->calcOrientation());
 	cameras.push_back(gameCam);
-	childTransform->addChild(gameCam)->translate(0,0,-5);
+	childTransform->addChild(gameCam)->translate(0,0,-10);
 	activeCamera = gameCam;
 	gameCam->interpolation = 1.f;
+
+	for(auto & v : MY_ResourceManager::globalAssets->getMesh("bullet")->meshes.at(0)->vertices){
+		v.green = v.blue = 0;
+	}
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -71,6 +79,16 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		checkForGlError(0);
 	}
 
+	
+#ifdef _DEBUG
+	if(keyboard->keyJustDown(GLFW_KEY_L)){
+		screenSurfaceShader->unload();
+		screenSurfaceShader->loadFromFile(screenSurfaceShader->vertSource, screenSurfaceShader->fragSource);
+		screenSurfaceShader->load();
+	}
+#endif
+
+
 	glm::vec2 sd = sweet::getWindowDimensions();
 
 	glm::vec3 mousePos(mouse->mouseX()/sd.x - 0.5f, mouse->mouseY()/sd.y - 0.5f, 0.5);
@@ -83,37 +101,95 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		}while(g > glm::pi<float>() * 2.f){
 			g -= glm::pi<float>() * 2.f;
 		}
+
+
 		float d = g - coords[i].x;
 		while(d < -glm::pi<float>()){
 			d += glm::pi<float>() * 2.f;
 		}while(d > glm::pi<float>()){
 			d -= glm::pi<float>() * 2.f;
 		}
-		d *= 0.1f;
+		d *= 0.15f;
 		d /= glm::pi<float>()*2.f/NUM_VERTS;
 		d = glm::min(1.f, glm::abs(d));
-		float c = Easing::easeInOutCubic(d, 1, -1, 1);
+		d = Easing::easeInOutCubic(d, 1, -1, 1);
+
+
+		float target = REST_RAD*(1.f - damage[i]);
 
 		if(mouse->rightDown()){
-			c *= -1;
-		}else if(!mouse->leftDown()){
-			c = 0;
+			target += (REST_RAD*0.25f - target) * d;
+		}else if(mouse->leftDown()){
+			target += (REST_RAD*3.f - target) * d;
 		}
 
 		
-		coords[i].y += c*0.5f;
-		coords[i].y = glm::clamp(coords[i].y, 0.5f, 2.f);
-		coords[i].y += (1.25f - coords[i].y) * 0.1f;
+		//coords[i].y += c*0.5f;
+		coords[i].y += (target - coords[i].y) * 0.1f;
+		coords[i].y = glm::clamp(coords[i].y, REST_RAD*0.25f, REST_RAD*3.f);
 
 		Vertex & v = meshThing->vertices.at(i+1);
 		v.x = glm::cos(coords[i].x) * coords[i].y;
 		v.y = glm::sin(coords[i].x) * coords[i].y;
-		v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
-		v.blue *= d;
-		v.green *= d;
+		v.green = v.blue = 1.f - damage[i];
+		//v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
+		//v.blue = d;
+		//v.green = d;
 
 	}
 	meshThing->dirty = true;
+
+
+
+
+
+	if(_step->cycles % 6 == 0){
+		addBullet();
+	}
+
+	for(signed long int i = bullets.size()-1; i >= 0; --i){
+		Bullet * b = bullets.at(i);
+		bool hit = b->r < b->polar->y + BULLET_RAD;
+		bool destroy = false;
+		if(hit){
+			if(!b->reverse){
+				if(b->polar->y > REST_RAD*1.25f){
+					b->reverse = true;
+					b->r = b->polar->y + BULLET_RAD;
+				}else{
+					if(!b->hit){
+						b->hit = true;
+						b->polar->y -= 0.5f;
+						b->polar->y = glm::max(b->polar->y, 0.f);
+						damage[b->idx] += 0.25f;
+						if(damage[b->idx] > 1){
+							damage[b->idx] = 1.f;
+							// do a thing
+						}
+					}
+				}
+			}
+		}
+		
+		if(b->hit){
+			if(b->r < 0){
+				destroy = true;
+			}
+		}else if(b->reverse){
+			if(b->r > 5.f){
+				destroy = true;
+			}
+		}
+
+		if( destroy ){
+			bullets.erase(bullets.begin() + i);
+			childTransform->removeChild(b->firstParent());
+			delete b->firstParent();
+		}
+	}
+
+
+
 
 
 	// Scene update
@@ -156,4 +232,47 @@ void MY_Scene_ScreenShaders::unload(){
 	screenSurface->unload();
 
 	MY_Scene_Base::unload();	
+}
+
+void MY_Scene_ScreenShaders::addBullet(){
+	static int i = 1;
+	static int dir = 1;
+	static int offset = false;
+	static int lastSample = 0;
+	static int randomness = 1;
+	static int difficulty = 1;
+
+	bool shoot = true;
+	bool changeMode = (sweet::step.cycles % 60 <= difficulty) ? sweet::NumberUtils::randomBool() : false;
+
+	difficulty = sweet::step.cycles / 1200;
+
+	i += dir;
+	i += sweet::NumberUtils::randomInt(-randomness,randomness);
+
+	if(shoot){
+		int idx = i;
+		idx += offset;
+		while(idx < 1){
+			idx += NUM_VERTS;
+		}while(idx > NUM_VERTS){
+			idx -= NUM_VERTS;
+		}
+
+		Bullet * b = new Bullet(baseShader);
+		b->idx = idx-1;
+		b->v = &meshThing->vertices.at(idx);
+		b->polar = &coords[idx-1];
+
+		childTransform->addChild(b);
+		b->firstParent()->translate(glm::cos(b->polar->x) * b->r, glm::sin(b->polar->x) * b->r, 0, false);
+
+		bullets.push_back(b);
+	}
+		
+	if(changeMode){
+		dir = sweet::NumberUtils::randomInt(-difficulty, difficulty);
+		offset = sweet::NumberUtils::randomInt(-NUM_VERTS/4, NUM_VERTS/4);
+		randomness = sweet::NumberUtils::randomInt(0,difficulty);
+	}
 }

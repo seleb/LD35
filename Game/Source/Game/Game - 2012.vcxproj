@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Bullet.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\MY_Game.cpp" />
     <ClCompile Include="src\MY_ResourceManager.cpp" />
@@ -25,6 +26,7 @@
     <ClCompile Include="src\Player.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Bullet.h" />
     <ClInclude Include="include\MY_Game.h" />
     <ClInclude Include="include\MY_ResourceManager.h" />
     <ClInclude Include="include\MY_Scene_Base.h" />
