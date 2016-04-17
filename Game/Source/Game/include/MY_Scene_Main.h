@@ -11,7 +11,8 @@ class Player;
 typedef enum{
 	kGROUND = (1 << 1),
 	kPLAYER = (1 << 2),
-	kLIMB = (1 << 3)
+	kLIMB = (1 << 3),
+	kBULLET = (1 << 4)
 } Box2D_Types;
 
 

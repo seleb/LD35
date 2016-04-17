@@ -5,20 +5,46 @@
 #include <StandardFrameBuffer.h>
 #include <RenderOptions.h>
 
+#include <NumberUtils.h>
+
 MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	MY_Scene_Base(_game),
-	screenSurfaceShader(new Shader("assets/RenderSurface_1", false, true)),
+	screenSurfaceShader(new Shader("assets/engine basics/DefaultRenderSurface", false, true)),
 	screenSurface(new RenderSurface(screenSurfaceShader, true)),
 	screenFBO(new StandardFrameBuffer(true))
 {
 	// set-up some UI to toggle between results
-	uiLayer->addMouseIndicator();
+	//uiLayer->addMouseIndicator();
+	sweet::setCursorMode(GLFW_CURSOR_NORMAL);
 
 
 	// memory management
 	screenSurface->incrementReferenceCount();
 	screenSurfaceShader->incrementReferenceCount();
 	screenFBO->incrementReferenceCount();
+
+
+	meshThing = new TriMesh(true, GL_LINE_STRIP);
+	MeshEntity * m = new MeshEntity(meshThing, baseShader);
+	childTransform->addChild(m);
+
+
+	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
+		coords[i].x = ((float)i/NUM_VERTS) * glm::pi<float>() * 2.f;// - glm::pi<float>()/2.f;
+		coords[i].y = 1.f;
+
+		meshThing->pushVert(Vertex(glm::cos(coords[i].x), glm::sin(coords[i].x), 0));
+	}
+	meshThing->indices.push_back(0);
+
+	glLineWidth(10);
+
+	gameCam = new PerspectiveCamera();
+	gameCam->yaw = -90;
+	gameCam->rotateVectors(gameCam->calcOrientation());
+	cameras.push_back(gameCam);
+	childTransform->addChild(gameCam)->translate(0,0,-5);
+	activeCamera = gameCam;
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -41,6 +67,33 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		glUniform1f(test, _step->time);
 		checkForGlError(0);
 	}
+
+	glm::vec2 sd = sweet::getWindowDimensions();
+
+	glm::vec3 mousePos(mouse->mouseX()/sd.x - 0.5f, mouse->mouseY()/sd.y - 0.5f, 5);
+	mousePos.z = 0;
+
+	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
+		float g = glm::atan(mousePos.x, mousePos.y) + glm::pi<float>()/2.f;
+		while(g < 0){
+			g += glm::pi<float>() * 2.f;
+		}while(g > glm::pi<float>() * 2.f){
+			g -= glm::pi<float>() * 2.f;
+		}
+
+		float c = 3.f - glm::min(3.f, (glm::abs(g - coords[i].x) / ( glm::pi<float>()*2.f/NUM_VERTS)) );
+
+		if(coords[i].y > glm::length(mousePos)){
+			c *= -1;
+		}
+		
+		coords[i].y += c;
+		coords[i].y += (1 - coords[i].y) * 0.1f;
+
+		meshThing->vertices.at(i).x = glm::cos(coords[i].x) * coords[i].y;
+		meshThing->vertices.at(i).y = glm::sin(coords[i].x) * coords[i].y;
+	}
+	meshThing->dirty = true;
 
 
 	// Scene update

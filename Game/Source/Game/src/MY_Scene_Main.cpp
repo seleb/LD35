@@ -51,7 +51,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	}
 
 
-	float d1 = 2, d2 = 1.f;
+	float d1 = 2, d2 = 0.5f;
 
 	// Setup the player
 	player = new Player(box2dWorld, baseShader);
@@ -83,7 +83,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 
 
 		Box2DSprite * prev = player;
-		int numSegments = 10;
+		int numSegments = 20;
 		for(unsigned long int i = 0; i < numSegments; ++i){
 			Box2DSprite * next = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("limb")->texture, d2, d2);
 			next->meshTransform->scale(d2);
@@ -185,13 +185,13 @@ void MY_Scene_Main::update(Step * _step){
 
 	
 	if(mouse->leftJustPressed()){
-		for(auto l : player->limbs){
+		for(auto & l : player->limbs){
 			l.segments.back()->body->SetType(b2_staticBody);
 			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend-closed")->texture);
 			//s->body->SetLinearDamping(1000);
 		}
 	}else if(mouse->leftJustReleased()){
-		for(auto l : player->limbs){
+		for(auto & l : player->limbs){
 			l.segments.back()->body->SetType(b2_dynamicBody);
 			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
 			//s->body->SetLinearDamping(0);
@@ -199,15 +199,16 @@ void MY_Scene_Main::update(Step * _step){
 	}
 	
 	glm::vec3 bodyPos = player->getPhysicsBodyCenter();
-	for(auto l : player->limbs){
+	for(auto & l : player->limbs){
 		glm::vec3 limbPos = l.segments.back()->getPhysicsBodyCenter();
 
 		glm::vec3 d = mousePos - limbPos;
 		d.z = 0;
+		l.dir = d;
 
 		glm::vec3 d2 = bodyPos - limbPos;
 		d2.z = 0;
-		d2 /= 15.f;
+		//d2 /= 25.f;
 		//d = glm::normalize(d);
 			
 		if(!mouse->leftDown()){
@@ -224,9 +225,24 @@ void MY_Scene_Main::update(Step * _step){
 		player->applyLinearImpulseToCenter(d*0.5f);
 	}
 
-
-
+	
 	if(mouse->rightJustPressed()){
+		for(auto & l : player->limbs){
+			Box2DSprite * bullet = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("bullet")->texture, 1, 1);
+			
+			b2Filter f;
+			f.categoryBits = kBULLET;
+			f.maskBits = 0;
+			bullet->body->SetBullet(true);
+			bullet->createFixture(f);
+			bullet->applyLinearImpulseToCenter(glm::normalize(l.dir) * 25.0f);
+			childTransform->addChild(bullet);
+			bullet->translatePhysical(l.segments.back()->getPhysicsBodyCenter());
+		}
+	}
+
+
+	if(keyboard->keyJustDown(GLFW_KEY_SPACE)){
 		player->breakLimb();
 	}
 }
