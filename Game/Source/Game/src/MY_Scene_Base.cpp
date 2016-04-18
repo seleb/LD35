@@ -68,7 +68,7 @@ void MY_Scene_Base::update(Step * _step){
 	controller->update(_step);
 
 	// basic debugging controls
-	if(keyboard->keyJustDown(GLFW_KEY_ESCAPE)){
+	/*if(keyboard->keyJustDown(GLFW_KEY_ESCAPE)){
 		// if the user hits escape on the menu, exit the game
 		// if the user hits escape anywhere else, take them to the menu
 		if(game->scenes["menu"] != this){
@@ -80,7 +80,7 @@ void MY_Scene_Base::update(Step * _step){
 		cycleCamera();
 	}if(keyboard->keyJustDown(GLFW_KEY_2)){
 		toggleDebug();
-	}
+	}*/
 
 	glm::uvec2 sd = sweet::getWindowDimensions();
 	uiLayer->resize(0, sd.x, 0, sd.y);

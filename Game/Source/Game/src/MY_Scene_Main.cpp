@@ -176,7 +176,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	startScreen->setRationalWidth(1.f, uiLayer);
 	uiLayer->addChild(startScreen);
 	startScreen->background->mesh->setScaleMode(GL_NEAREST);
-	startScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("startScreen")->texture);
+	startScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("fill")->texture);
 	startScreen->setMouseEnabled(true);
 	startScreen->eventManager->addEventListener("click", [this](sweet::Event * _event){
 		gameStarted = true;
@@ -207,7 +207,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	endScreen->setRationalWidth(1.f, uiLayer);
 	uiLayer->addChild(endScreen);
 	endScreen->background->mesh->setScaleMode(GL_NEAREST);
-	endScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("endScreen")->texture);
+	endScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("fill")->texture);
 	endScreen->setRenderMode(kTEXTURE);
 	endScreen->eventManager->addEventListener("click", [this](sweet::Event * _event){
 		endScreen->setVisible(false);

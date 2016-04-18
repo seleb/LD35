@@ -18,6 +18,6 @@
 	},
 	
 	"rngSeed": 0,
-	"nodeCounting": true,
+	"nodeCounting": false,
 	"useLibOVR": false
 }
