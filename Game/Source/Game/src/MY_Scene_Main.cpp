@@ -187,6 +187,21 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 		shoot->restart();
 	});
 
+	{
+		VerticalLinearLayout * titleLayout = new VerticalLinearLayout(uiLayer->world);
+		startScreen->addChild(titleLayout);
+		titleLayout->setRationalHeight(1.f, startScreen);
+		titleLayout->setRationalWidth(1.f, startScreen);
+		titleLayout->horizontalAlignment = kCENTER;
+		titleLayout->verticalAlignment = kMIDDLE;
+		titleLayout->setRenderMode(kTEXTURE);
+
+		TextLabel * title = new TextLabel(uiLayer->world, MY_ResourceManager::globalAssets->getFont("titlefont")->font, textShader);
+		titleLayout->addChild(title);
+		title->setText("PURITY");
+	}
+
+
 	endScreen = new NodeUI(uiLayer->world);
 	endScreen->setRationalHeight(1.f, uiLayer);
 	endScreen->setRationalWidth(1.f, uiLayer);
