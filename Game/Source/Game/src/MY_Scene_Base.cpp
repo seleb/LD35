@@ -21,7 +21,7 @@ MY_Scene_Base::MY_Scene_Base(Game * _game) :
 	Scene(_game),
 	baseShader(new ComponentShaderBase(true)),
 	textShader(new ComponentShaderText(true)),
-	font(MY_ResourceManager::globalAssets->getFont("DEFAULT")->font),
+	font(MY_ResourceManager::globalAssets->getFont("font")->font),
 	uiLayer(new UILayer(0,0,0,0)),
 	debugCam(new MousePerspectiveCamera()),
 	controller(new JoystickVirtual(0))
@@ -32,7 +32,7 @@ MY_Scene_Base::MY_Scene_Base(Game * _game) :
 	baseShader->compileShader();
 	baseShader->name = "MY_Scene_Base base shader";
 
-	textShader->textComponent->setColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
+	textShader->textComponent->setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.f));
 	textShader->name = "MY_Scene_Base text shader";
 
 	// Set up debug camera

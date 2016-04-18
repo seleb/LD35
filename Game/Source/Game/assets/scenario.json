@@ -79,5 +79,14 @@
       "stream":false,
       "positional":false
     }
+
+
+    ,{
+      "type":"font",
+      "id":"font",
+      "src":"slkscr.ttf",
+      "antiAliased":false,
+      "size": "32px"
+    }
   ]
 }

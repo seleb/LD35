@@ -10,6 +10,7 @@
 
 #include <Bullet.h>
 #include <AutoMusic.h>
+#include <sweet\UI.h>
 
 MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	MY_Scene_Base(_game),
@@ -17,8 +18,18 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	screenSurface(new RenderSurface(screenSurfaceShader, true)),
 	screenFBO(new StandardFrameBuffer(true)),
 	health(1),
-	shooting(false)
+	shooting(false),
+	score(0)
 {
+	
+	enemy.i = 1;
+	enemy.dir = 1;
+	enemy.offset = false;
+	enemy.randomness = 1;
+	enemy.difficulty = -1;
+	enemy.bulletsFired = 0;
+	enemy.stagger = 1;
+
 	// set-up some UI to toggle between results
 	//uiLayer->addMouseIndicator();
 	sweet::setCursorMode(GLFW_CURSOR_NORMAL);
@@ -147,6 +158,23 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 
 	MY_ResourceManager::globalAssets->getAudio("hit")->sound->play(true);
 	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(0);
+
+
+	VerticalLinearLayout * vl = new VerticalLinearLayout(uiLayer->world);
+	uiLayer->addChild(vl);
+	vl->background->setVisible(true);
+	vl->setBackgroundColour(0,0,0,1);
+	vl->marginBottom.setRationalSize(0.05f, &vl->height);
+	vl->marginLeft.setRationalSize(0.05f, &vl->width);
+
+	vl->setRenderMode(kTEXTURE);
+
+	TextLabelControlled * txtScore = new TextLabelControlled(&score, 0, FLT_MAX, uiLayer->world, font, textShader);
+	txtScore->prefix = "PTS: ";
+	vl->addChild(txtScore);
+	TextLabelControlled * txtDifficulty = new TextLabelControlled(&enemy.difficulty, 0, FLT_MAX, uiLayer->world, font, textShader);
+	txtDifficulty->prefix = "LVL: ";
+	vl->addChild(txtDifficulty);
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -261,6 +289,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 					b->reverse = true;
 					b->r = b->polar->y + BULLET_RAD;
 					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
+					score += 1;
 				}else{
 					if(!b->hit){
 						b->hit = true;
@@ -347,27 +376,18 @@ void MY_Scene_ScreenShaders::unload(){
 }
 
 void MY_Scene_ScreenShaders::addBullet(){
-	static float i = 1;
-	static float dir = 1;
-	static int offset = false;
-	static int lastSample = 0;
-	static int randomness = 1;
-	static int difficulty = 1;
-	static int bulletsFired = 0;
-	static int stagger = 1;
+	enemy.bulletsFired++;
 
-	bulletsFired++;
+	bool changeMode = (enemy.bulletsFired % 60 <= enemy.difficulty) ? sweet::NumberUtils::randomBool() : false;
 
-	bool changeMode = (bulletsFired % 60 <= difficulty) ? sweet::NumberUtils::randomBool() : false;
+	enemy.difficulty = glm::max(1.f, glm::floor(enemy.bulletsFired / 1200.f));
 
-	difficulty = glm::max(1, bulletsFired / 1200);
+	enemy.i += enemy.dir/6.f;
+	enemy.i += sweet::NumberUtils::randomInt(-enemy.randomness,enemy.randomness);
 
-	i += dir/6.f;
-	i += sweet::NumberUtils::randomInt(-randomness,randomness);
-
-	if(shooting && bulletsFired % stagger == 0){
-		int idx = i;
-		idx += offset;
+	if(shooting && enemy.bulletsFired % enemy.stagger == 0){
+		int idx = enemy.i;
+		idx += enemy.offset;
 		while(idx < 1){
 			idx += NUM_VERTS;
 		}while(idx > NUM_VERTS){
@@ -386,16 +406,16 @@ void MY_Scene_ScreenShaders::addBullet(){
 	}
 		
 	if(changeMode){
-		dir = sweet::NumberUtils::randomFloat(-difficulty, difficulty);
-		offset = sweet::NumberUtils::randomInt(-NUM_VERTS/4, NUM_VERTS/4);
-		randomness = sweet::NumberUtils::randomInt(0,difficulty);
-		if(dir == 0 && randomness == 0){
+		enemy.dir = sweet::NumberUtils::randomFloat(-enemy.difficulty, enemy.difficulty);
+		enemy.offset = sweet::NumberUtils::randomInt(-NUM_VERTS/4, NUM_VERTS/4);
+		enemy.randomness = sweet::NumberUtils::randomInt(0, enemy.difficulty);
+		if(enemy.dir == 0 && enemy.randomness == 0){
 			if(sweet::NumberUtils::randomBool()){
-				dir = sweet::NumberUtils::randomBool() ? -1 : 1;
+				enemy.dir = sweet::NumberUtils::randomBool() ? -1 : 1;
 			}else{
-				randomness = 1;
+				enemy.randomness = 1;
 			}
 		}
-		stagger = sweet::NumberUtils::randomInt(1,3);
+		enemy.stagger = sweet::NumberUtils::randomInt(1,3);
 	}
 }

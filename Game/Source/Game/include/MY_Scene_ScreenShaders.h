@@ -41,4 +41,15 @@ public:
 
 	MY_Scene_ScreenShaders(Game * _game);
 	~MY_Scene_ScreenShaders();
+
+	struct{
+		float i;
+		float dir;
+		int offset;
+		int randomness;
+		float difficulty;
+		int bulletsFired;
+		int stagger;
+	} enemy;
+	float score;
 };
