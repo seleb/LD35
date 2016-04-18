@@ -248,10 +248,6 @@ void MY_Scene_Main::update(Step * _step){
 		screenSurfaceShader->loadFromFile(screenSurfaceShader->vertSource, screenSurfaceShader->fragSource);
 		screenSurfaceShader->load();
 	}
-
-	if(keyboard->keyJustDown(GLFW_KEY_R)){
-		reset();
-	}
 #endif
 	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("deflect")->sound->getGain(false)-0.1f));
 	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("hit")->sound->getGain(false)-0.2f));
@@ -362,7 +358,11 @@ void MY_Scene_Main::update(Step * _step){
 			}
 		}
 
-		if(health < 0){
+		if(health < 0
+#ifdef _DEBUG
+			|| keyboard->keyJustDown(GLFW_KEY_R)
+#endif	
+			){
 			health = 0;
 			gameOver = true;
 			
