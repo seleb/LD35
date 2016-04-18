@@ -146,9 +146,6 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 		gameCam->roll = (sweet::NumberUtils::randomFloat(-p,p))*5;
 		//MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + (1.f-sweet::NumberUtils::randomFloat(-p,p)));
 	});
-	hit->eventManager->addEventListener("start", [this](sweet::Event * _event){	
-		MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
-	});
 	
 	childTransform->addChild(hit, false);
 	
@@ -291,6 +288,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 					b->reverse = true;
 					b->r = b->polar->y + BULLET_RAD;
 					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
+					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
 					score += enemy.difficulty;
 				}else{
 					if(!b->hit){
@@ -304,6 +302,8 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 							damage[b->idx] = 1.f;
 						}
 						hit->restart();
+						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
+						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
 					}
 				}
 			}
