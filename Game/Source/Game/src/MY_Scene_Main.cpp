@@ -182,6 +182,9 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 		gameStarted = true;
 		startScreen->setVisible(false);
 		startScreen->setMouseEnabled(false);
+
+		shooting = false;
+		shoot->restart();
 	});
 
 	endScreen = new NodeUI(uiLayer->world);
@@ -192,7 +195,6 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	endScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("endScreen")->texture);
 	endScreen->setRenderMode(kTEXTURE);
 	endScreen->eventManager->addEventListener("click", [this](sweet::Event * _event){
-		gameOver = false;
 		endScreen->setVisible(false);
 		endScreen->setMouseEnabled(false);
 		startScreen->setVisible(true);
@@ -491,5 +493,8 @@ void MY_Scene_Main::reset(){
 	enemy.difficulty = -1;
 	enemy.bulletsFired = 0;
 	enemy.stagger = 1;
+
 	shooting = false;
+	gameOver = false;
+	gameStarted = false;
 }
