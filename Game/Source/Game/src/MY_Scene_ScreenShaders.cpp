@@ -163,7 +163,7 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	VerticalLinearLayout * vl = new VerticalLinearLayout(uiLayer->world);
 	uiLayer->addChild(vl);
 	vl->background->setVisible(true);
-	vl->setBackgroundColour(0,0,0,1);
+	vl->setBackgroundColour(0.5,0.49,0,1);
 	vl->marginBottom.setRationalSize(0.05f, &vl->height);
 	vl->marginLeft.setRationalSize(0.05f, &vl->width);
 
@@ -172,9 +172,11 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 	TextLabelControlled * txtScore = new TextLabelControlled(&score, 0, FLT_MAX, uiLayer->world, font, textShader);
 	txtScore->prefix = "PTS: ";
 	vl->addChild(txtScore);
+	txtScore->setPadding(0.01f);
 	TextLabelControlled * txtDifficulty = new TextLabelControlled(&enemy.difficulty, 0, FLT_MAX, uiLayer->world, font, textShader);
 	txtDifficulty->prefix = "LVL: ";
 	vl->addChild(txtDifficulty);
+	txtDifficulty->setPadding(0.01f);
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){

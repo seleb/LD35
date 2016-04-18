@@ -38,7 +38,7 @@ void main() {
     	col -= fract(col2/2);
     }
 
-    outColor = length(col.rgb) >= length(vec3(0.5)) ? vec4(1) : vec4(0,0,0,0.5);
+    outColor = length(col.rgb) >= length(vec3(0.5)) ? vec4(1) : vec4(0,0,0,m*5+0.25);
     if(r > 0){
 	    outColor.g *= col.g;
 	    outColor.b *= col.b;
