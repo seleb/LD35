@@ -289,7 +289,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 					b->reverse = true;
 					b->r = b->polar->y + BULLET_RAD;
 					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
-					score += 1;
+					score += enemy.difficulty;
 				}else{
 					if(!b->hit){
 						b->hit = true;
