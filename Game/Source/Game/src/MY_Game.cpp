@@ -5,7 +5,7 @@
 #include <MY_ResourceManager.h>
 
 #include <MY_Scene_Main.h>
-#include <MY_Scene_ScreenShaders.h>
+#include <MY_Scene_Main.h>
 /*#include <MY_Scene_Menu.h>
 #include <MY_Scene_Box2D.h>
 #include <MY_Scene_Bullet3D.h>
@@ -16,7 +16,7 @@
 bool MY_Game::resized = false;
 
 MY_Game::MY_Game() :
-	Game("menu", new MY_Scene_ScreenShaders(this), true), // initialize our game with a menu scene
+	Game("menu", new MY_Scene_Main(this), true), // initialize our game with a menu scene
 	lastSize(0)
 {
 	// initialize all of our scenes in the game's scene map for later use
@@ -26,7 +26,7 @@ MY_Game::MY_Game() :
 	// before switching to it, and create it then if needed.
 	/*scenes["box2d"] = new MY_Scene_Box2D(this);
 	scenes["bullet3d"] = new MY_Scene_Bullet3D(this);
-	scenes["screenshaders"] = new MY_Scene_ScreenShaders(this);
+	scenes["screenshaders"] = new MY_Scene_Main(this);
 	scenes["surfaceshaders"] = new MY_Scene_SurfaceShaders(this);
 	scenes["vr"] = new MY_Scene_VR(this);*/
 }

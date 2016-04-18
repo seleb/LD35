@@ -1,59 +1,55 @@
 #pragma once
 
 #include <MY_Scene_Base.h>
+#include <OpenALSound.h>
 
-class Box2DWorld;
-class Box2DDebugDrawer;
-class Box2DSprite;
-class Box2DMeshEntity;
-class Player;
+class RenderSurface;
+class StandardFrameBuffer;
+class Bullet;
 
-typedef enum{
-	kGROUND = (1 << 1),
-	kPLAYER = (1 << 2),
-	kLIMB = (1 << 3),
-	kBULLET = (1 << 4)
-} Box2D_Types;
+#define NUM_VERTS 64
+#define REST_RAD 1.25f
 
-
-class ShaderComponentWorldSpaceUVs;
-
-// A sample scene showing some of the basics of integrating a Box2D physics simulation into a game scene
 class MY_Scene_Main : public MY_Scene_Base{
 public:
-	ComponentShaderBase * worldspaceShader;
-	ShaderComponentWorldSpaceUVs * uvComponent;
+	Shader * screenSurfaceShader;
+	RenderSurface * screenSurface;
+	StandardFrameBuffer * screenFBO;
 
+	MeshInterface * meshThing;
 
-	// The scene's physics world
-	Box2DWorld * box2dWorld;
-	// used to draw wireframes showing physics colliders, transforms, etc
-	Box2DDebugDrawer * box2dDebugDrawer;
+	PerspectiveCamera * gameCam;
 
+	std::vector<Bullet *> bullets;
+	NodeUI * heart;
+	float health;
+	Timeout * heartbeat, * shoot, * hit;
+	float heartBeatT;
+	bool shooting;
+
+	virtual void update(Step * _step) override;
+	virtual void render(sweet::MatrixStack * _matrixStack, RenderOptions * _renderOptions) override;
+
+	virtual void unload() override;
+	virtual void load() override;
 	
-	// A Box2DMeshSprite is a class which combines a Box2D physics node and a standard Sprite.
-	// The physics node alters the position/orientation of the Sprite's childTransform
-	// during the update loop to match the physics body's position/orientation within the Box2D world
-	//
-	// In this scene, we are using a Box2DSprite to represent a player object
-	// In order to control the player object, we will be treating it as a rigid body and applying forces/impulses
-	Player * player;
-	// Similar to the Box2DMeshSprite, Box2DMeshEntity is a class which combines a Box2D physics node and a standard MeshEntity
-	//
-	// In this scene, we are using a Box2DMeshEntity to represent a ground object
-	// This object will be a static body
-	Box2DSprite * ground;
+	glm::vec2 coords[NUM_VERTS];
+	float damage[NUM_VERTS];
 
-	OrthographicCamera * gameCam;
 
+	void addBullet();
 
 	MY_Scene_Main(Game * _game);
 	~MY_Scene_Main();
 
-	virtual void update(Step * _step) override;
-	
-	// overriden to add physics debug drawing
-	virtual void enableDebug() override;
-	// overriden to remove physics debug drawing
-	virtual void disableDebug() override;
+	struct{
+		float i;
+		float dir;
+		int offset;
+		int randomness;
+		float difficulty;
+		int bulletsFired;
+		int stagger;
+	} enemy;
+	float score;
 };

@@ -1,258 +1,423 @@
 #pragma once
 
 #include <MY_Scene_Main.h>
+#include <RenderSurface.h>
+#include <StandardFrameBuffer.h>
+#include <RenderOptions.h>
 
-#include <Box2DWorld.h>
-#include <Box2DDebugDrawer.h>
-#include <Box2DMeshEntity.h>
-#include <Box2DSprite.h>
+#include <NumberUtils.h>
+#include <Easing.h>
 
-#include <Box2D\Dynamics\Joints\b2RevoluteJoint.h>
-
-#include <MeshFactory.h>
-
-#include <shader/ShaderComponentMVP.h>
-#include <shader/ShaderComponentTexture.h>
-#include <shader/ShaderComponentWorldSpaceUVs.h>
-
-#include <Player.h>
+#include <Bullet.h>
+#include <AutoMusic.h>
+#include <sweet\UI.h>
 
 MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	MY_Scene_Base(_game),
-	box2dWorld(new Box2DWorld(b2Vec2(0.f, 0.0f))),
-	box2dDebugDrawer(new Box2DDebugDrawer(box2dWorld))
+	screenSurfaceShader(new Shader("assets/RenderSurface", false, true)),
+	screenSurface(new RenderSurface(screenSurfaceShader, true)),
+	screenFBO(new StandardFrameBuffer(true)),
+	health(1),
+	shooting(false),
+	score(0)
 {
-	worldspaceShader = new ComponentShaderBase(true);
-	worldspaceShader->addComponent(new ShaderComponentMVP(worldspaceShader));
-	worldspaceShader->addComponent(new ShaderComponentTexture(worldspaceShader));
-	worldspaceShader->addComponent(uvComponent = new ShaderComponentWorldSpaceUVs(worldspaceShader));
-	uvComponent->xMultiplier = 0.05f;
-	uvComponent->yMultiplier = 0.05f;
-	//worldspaceShader->addComponent(new ShaderComponentDiffuse(worldspaceShader));
-	worldspaceShader->compileShader();
-	worldspaceShader->incrementReferenceCount();
+	
+	enemy.i = 1;
+	enemy.dir = 1;
+	enemy.offset = false;
+	enemy.randomness = 1;
+	enemy.difficulty = -1;
+	enemy.bulletsFired = 0;
+	enemy.stagger = 1;
 
-	// Setup the debug drawer and add it to the scene
-	childTransform->addChild(box2dDebugDrawer, false);
-	box2dDebugDrawer->drawing = false;
-	box2dWorld->b2world->SetDebugDraw(box2dDebugDrawer);
-	box2dDebugDrawer->AppendFlags(b2Draw::e_shapeBit);
-	box2dDebugDrawer->AppendFlags(b2Draw::e_centerOfMassBit);
-	box2dDebugDrawer->AppendFlags(b2Draw::e_jointBit);
+	// set-up some UI to toggle between results
+	//uiLayer->addMouseIndicator();
+	sweet::setCursorMode(GLFW_CURSOR_NORMAL);
 
-	// Setup the ground
-	{
-		ground = new Box2DSprite(box2dWorld, b2_staticBody, baseShader, MY_ResourceManager::globalAssets->getTexture("DEFAULT")->texture, 10, 1);
-		b2Filter f;
-		f.categoryBits = kGROUND;
-		f.maskBits = kPLAYER;
-		ground->createFixture(f); // when we're using a Box2DMeshEntity, createFixture will make a collider which matches the bounding box (or bounding circle, if you use the argument)
-		childTransform->addChild(ground);
+
+	// memory management
+	screenSurface->incrementReferenceCount();
+	screenSurfaceShader->incrementReferenceCount();
+	screenFBO->incrementReferenceCount();
+
+
+	meshThing = new TriMesh(true, GL_TRIANGLE_FAN);
+	MeshEntity * m = new MeshEntity(meshThing, baseShader);
+	childTransform->addChild(m);
+	
+	meshThing->pushVert(Vertex(0, 0, 0, 0, 0, 0, 1.f));
+
+	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
+		coords[i].x = ((float)i/NUM_VERTS) * glm::pi<float>() * 2.f;
+		coords[i].y = 1.f;
+		damage[i] = 0;
+
+		meshThing->pushVert(Vertex(0,0, 0));
 	}
+	meshThing->indices.push_back(1);
 
+	glLineWidth(1.f);
 
-	float d1 = 2, d2 = 0.5f;
-
-	// Setup the player
-	player = new Player(box2dWorld, baseShader);
-	player->mesh->setScaleMode(GL_NEAREST);
-	player->meshTransform->scale(d1);
-	//player->createFixture(); // when we're using a Box2DSprite, createFixture will make a collider which matches the provided width and height of the sprite (note that this is different from the actual texture size)
-	
-	b2CircleShape tShape;
-	tShape.m_radius = d1*0.5f;
-	
-	b2FixtureDef fd;
-	fd.shape = &tShape;
-	fd.restitution = 0.f;
-	fd.friction = 0.5f;
-	fd.isSensor = false;
-	fd.density = 1.f;
-	fd.userData = nullptr;
-	fd.filter = b2Filter();
-	fd.filter.categoryBits = kPLAYER;
-	fd.filter.maskBits = kGROUND;
-
-	b2Fixture * f = player->body->CreateFixture(&fd);
-
-	int numLimbs = 3;
-	for(unsigned long int i = 0; i < numLimbs; ++i){
-		float angle = (float)i/numLimbs * glm::pi<float>()*2.f;
-
-		player->limbs.push_back(Limb());
-
-
-		Box2DSprite * prev = player;
-		int numSegments = 20;
-		for(unsigned long int i = 0; i < numSegments; ++i){
-			Box2DSprite * next = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("limb")->texture, d2, d2);
-			next->meshTransform->scale(d2);
-			if(i == numSegments-1){
-				player->limbs.back().segments.push_back(next);
-				next->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
-			}
-
-			next->mesh->setScaleMode(GL_NEAREST);
-		
-			b2CircleShape tShape;
-			tShape.m_radius = d2*0.5f;
-	
-			b2FixtureDef fd;
-			fd.shape = &tShape;
-			fd.restitution = 0.f;
-			fd.friction = 0.5f;
-			fd.isSensor = false;
-			fd.density = 1.f;
-			fd.userData = nullptr;
-			fd.filter = b2Filter();
-			fd.filter.categoryBits = kLIMB;
-			fd.filter.maskBits = 0;
-
-			b2Fixture * f = next->body->CreateFixture(&fd);
-		
-		
-			//next->createFixture(); // when we're using a Box2DSprite, createFixture will make a collider which matches the provided width and height of the sprite (note that this is different from the actual texture size)
-			childTransform->addChild(next);
-
-			b2RevoluteJointDef jointDef;
-			jointDef.bodyA = prev->body;
-			jointDef.bodyB = next->body;
-			jointDef.collideConnected = false;
-			jointDef.localAnchorA = b2Vec2(glm::cos(angle) * d1*0.25f, glm::sin(angle) * d1*0.25f);
-			jointDef.localAnchorB = b2Vec2(glm::cos(angle) * d2*-0.25f, glm::sin(angle) * d2*-0.25f);
-			player->limbs.back().joints.push_back(box2dWorld->b2world->CreateJoint(&jointDef));
-		
-			prev = next;
-			d1 = d2;
-		}
-	}
-
-	// when dealing with physics nodes, we use translatePhysical instead of editing the Transform nodes directly
-	// this is because we need to inform the physics simulation of the change, not our Transform hierarchy
-	// the physics node will handle the placement of its childTransform automatically later during the update loop
-	player->translatePhysical(glm::vec3(0, 6, 0), false); 
-	
-	childTransform->addChild(player);
-
-
-	gameCam = new OrthographicCamera(-16, 16, -9, 9, -100, 100);
+	gameCam = new PerspectiveCamera();
+	gameCam->yaw = -90;
+	gameCam->rotateVectors(gameCam->calcOrientation());
 	cameras.push_back(gameCam);
-	childTransform->addChild(gameCam);
+	childTransform->addChild(gameCam)->translate(0,0,-10);
 	activeCamera = gameCam;
-	
-	MeshEntity * sky = new MeshEntity(MeshFactory::getPlaneMesh(), worldspaceShader);
-	sky->mesh->setScaleMode(GL_NEAREST);
-	sky->childTransform->rotate(90, 0,1,0, kOBJECT);
-	sky->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("bg")->texture);
-	gameCam->childTransform->addChild(sky)->scale(50);
-	sky->firstParent()->translate(50,0,0);
+	gameCam->interpolation = 1.f;
 
-	uiLayer->addMouseIndicator();
+	for(auto & v : MY_ResourceManager::globalAssets->getMesh("bullet")->meshes.at(0)->vertices){
+		v.green = v.blue = 0;
+	}
+
+	
+	NodeUI * overlay = new NodeUI(uiLayer->world);
+	uiLayer->addChild(overlay);
+	overlay->setRationalHeight(1.f, uiLayer);
+	overlay->setSquareWidth(1.f);
+	overlay->background->mesh->setScaleMode(GL_NEAREST);
+	overlay->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("overlay")->texture);
+
+	heart = new NodeUI(uiLayer->world);
+	uiLayer->addChild(heart);
+	heart->setRationalHeight(1.f, uiLayer);
+	heart->setSquareWidth(1.f);
+	heart->background->mesh->setScaleMode(GL_NEAREST);
+	heart->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("heart")->texture);
+	
+	for(auto & v : heart->background->mesh->vertices){
+		v.x -= 0.5;
+		v.y -= 0.5;
+	}
+	heart->background->meshTransform->translate(0.5,0.5,0, false);
+
+	MY_ResourceManager::globalAssets->getAudio("bgm")->sound->play(true);
+
+
+	heartBeatT = 0;
+	heartbeat = new Timeout(0.32f, [this](sweet::Event * _event){
+		if(!mouse->leftDown()){
+			health += 0.05f;
+			if(health > 1){
+				health = 1;
+			}
+			for(auto & d : damage){
+				d -= 0.15f;
+				if(d < 0){
+					d = 0;
+				}
+			}
+		}
+		heartbeat->restart();
+		heartBeatT = 0;
+	});
+	heartbeat->eventManager->addEventListener("progress", [this](sweet::Event * _event){
+		heartBeatT = _event->getFloatData("progress");
+	});
+	
+	childTransform->addChild(heartbeat, false);
+	heartbeat->start();
+
+	
+	shoot = new Timeout(0.32f, [this](sweet::Event * _event){	
+		shooting = !shooting;
+		if(shooting){
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 2.5f);
+		}else{
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 1.5f);
+		}
+		shoot->restart();
+	});
+	
+	childTransform->addChild(shoot, false);
+	shoot->start();
+
+	
+	hit = new Timeout(0.32f, [this](sweet::Event * _event){
+		//gameCam->pitch = 0;
+		//gameCam->yaw = -90;
+		gameCam->roll = 0;
+		MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1);
+	});
+	hit->eventManager->addEventListener("progress", [this](sweet::Event * _event){
+		float p = 1.f-_event->getFloatData("progress");
+		//gameCam->pitch = sweet::NumberUtils::randomFloat(-p,p)*15;
+		//gameCam->yaw = -90;
+		gameCam->roll = (sweet::NumberUtils::randomFloat(-p,p))*5;
+		//MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + (1.f-sweet::NumberUtils::randomFloat(-p,p)));
+	});
+	
+	childTransform->addChild(hit, false);
+	
+
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->play(true);
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(0);
+
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->play(true);
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(0);
+
+
+	VerticalLinearLayout * vl = new VerticalLinearLayout(uiLayer->world);
+	uiLayer->addChild(vl);
+	vl->background->setVisible(true);
+	vl->setBackgroundColour(0.5,0.49,0,1);
+	vl->marginBottom.setRationalSize(0.05f, &vl->height);
+	vl->marginLeft.setRationalSize(0.05f, &vl->width);
+
+	vl->setRenderMode(kTEXTURE);
+
+	TextLabelControlled * txtScore = new TextLabelControlled(&score, 0, FLT_MAX, uiLayer->world, font, textShader);
+	txtScore->prefix = "PTS: ";
+	vl->addChild(txtScore);
+	txtScore->setPadding(0.01f);
+	TextLabelControlled * txtDifficulty = new TextLabelControlled(&enemy.difficulty, 0, FLT_MAX, uiLayer->world, font, textShader);
+	txtDifficulty->prefix = "LVL: ";
+	vl->addChild(txtDifficulty);
+	txtDifficulty->setPadding(0.01f);
 }
 
 MY_Scene_Main::~MY_Scene_Main(){
-	worldspaceShader->decrementAndDelete();
-
-	// we need to destruct the scene elements before the physics world to avoid memory issues
-	deleteChildTransform();
-
-
+	
+	// memory management
+	screenSurface->decrementAndDelete();
+	screenSurfaceShader->decrementAndDelete();
+	screenFBO->decrementAndDelete();
 }
 
 
 void MY_Scene_Main::update(Step * _step){
-	// Physics update
-	box2dWorld->update(_step);
-	// Scene update
-	MY_Scene_Base::update(_step);
+	// Screen shader update
+	// Screen shaders are typically loaded from a file instead of built using components, so to update their uniforms
+	// we need to use the OpenGL API calls
+	screenSurfaceShader->bindShader(); // remember that we have to bind the shader before it can be updated
+	GLint test = glGetUniformLocation(screenSurfaceShader->getProgramId(), "time");
+	checkForGlError(0);
+	if(test != -1){
+		glUniform1f(test, _step->time);
+		checkForGlError(0);
+	}test = glGetUniformLocation(screenSurfaceShader->getProgramId(), "beat");
+	checkForGlError(0);
+	if(test != -1){
+		glUniform1f(test, heartBeatT);
+		checkForGlError(0);
+	}
 
-	// player input
-	/*player->applyLinearImpulseRight(controller->getAxis(controller->axisLeftX));
-	if(controller->buttonJustDown(controller->faceButtonDown)){
-		player->applyLinearImpulseUp(15);
-	}*/
+	
+#ifdef _DEBUG
+	if(keyboard->keyJustDown(GLFW_KEY_L)){
+		screenSurfaceShader->unload();
+		screenSurfaceShader->loadFromFile(screenSurfaceShader->vertSource, screenSurfaceShader->fragSource);
+		screenSurfaceShader->load();
+	}
 
-	glm::vec3 camPos = gameCam->childTransform->getWorldPos();
-	glm::vec3 playerPos = player->getPhysicsBodyCenter();
-	glm::vec3 camMovement = playerPos - camPos;
-	camMovement.z = 0;
+	if(keyboard->keyJustDown(GLFW_KEY_R)){
+		health = 1.f;
+		for(auto & d : damage){
+			d = 0.f;
+		}
+	}
+#endif
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("deflect")->sound->getGain(false)-0.1f));
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("hit")->sound->getGain(false)-0.2f));
 
-	gameCam->firstParent()->translate(camMovement * 0.1f);
 
 	glm::vec2 sd = sweet::getWindowDimensions();
 
-	glm::vec3 mousePos = activeCamera->screenToWorld(glm::vec3(mouse->mouseX()/sd.x, mouse->mouseY()/sd.y, 1), sd);
+	glm::vec3 mousePos(mouse->mouseX()/sd.x - 0.5f, mouse->mouseY()/sd.y - 0.5f, 0.5);
+	mousePos.z = 0;
 
-	
-	if(mouse->leftJustPressed()){
-		for(auto & l : player->limbs){
-			l.segments.back()->body->SetType(b2_staticBody);
-			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend-closed")->texture);
-			//s->body->SetLinearDamping(1000);
-		}
-	}else if(mouse->leftJustReleased()){
-		for(auto & l : player->limbs){
-			l.segments.back()->body->SetType(b2_dynamicBody);
-			l.segments.back()->mesh->replaceTextures(MY_ResourceManager::globalAssets->getTexture("limbend")->texture);
-			//s->body->SetLinearDamping(0);
-		}
-	}
-	
-	glm::vec3 bodyPos = player->getPhysicsBodyCenter();
-	for(auto & l : player->limbs){
-		glm::vec3 limbPos = l.segments.back()->getPhysicsBodyCenter();
-
-		glm::vec3 d = mousePos - limbPos;
-		d.z = 0;
-		l.dir = d;
-
-		glm::vec3 d2 = bodyPos - limbPos;
-		d2.z = 0;
-		//d2 /= 25.f;
-		//d = glm::normalize(d);
-			
-		if(!mouse->leftDown()){
-			l.segments.back()->applyLinearImpulseToCenter(d/(float)player->limbs.size() * glm::length(d2));
+	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
+		float g = glm::atan(mousePos.x, mousePos.y) + glm::pi<float>()/2.f;
+		while(g < 0){
+			g += glm::pi<float>() * 2.f;
+		}while(g > glm::pi<float>() * 2.f){
+			g -= glm::pi<float>() * 2.f;
 		}
 
-		l.segments.back()->body->SetTransform(l.segments.back()->body->GetWorldCenter(), -glm::atan(d.x, d.y));
-	}
-	if(mouse->leftDown() && player->limbs.size() > 0){
-		glm::vec3 d = mousePos - bodyPos;
-		d.z = 0;
-		//d = glm::normalize(d);
 
-		player->applyLinearImpulseToCenter(d*0.5f);
-	}
+		float d = g - coords[i].x;
+		while(d < -glm::pi<float>()){
+			d += glm::pi<float>() * 2.f;
+		}while(d > glm::pi<float>()){
+			d -= glm::pi<float>() * 2.f;
+		}
+		d *= 0.15f;
+		d /= glm::pi<float>()*2.f/NUM_VERTS;
+		d = glm::min(1.f, glm::abs(d));
+		d = Easing::easeInOutBounce(d, 1, -1, 1);
 
-	
-	if(mouse->rightJustPressed()){
-		for(auto & l : player->limbs){
-			Box2DSprite * bullet = new Box2DSprite(box2dWorld, b2_dynamicBody, baseShader, MY_ResourceManager::globalAssets->getTexture("bullet")->texture, 1, 1);
-			
-			b2Filter f;
-			f.categoryBits = kBULLET;
-			f.maskBits = 0;
-			bullet->body->SetBullet(true);
-			bullet->createFixture(f);
-			bullet->applyLinearImpulseToCenter(glm::normalize(l.dir) * 25.0f);
-			childTransform->addChild(bullet);
-			bullet->translatePhysical(l.segments.back()->getPhysicsBodyCenter());
+
+		float target = REST_RAD*(1.f - damage[i])*(health*0.75f+0.25f);
+
+		/*if(mouse->rightDown()){
+			target += (REST_RAD*0.25f - target) * d;
+		}else */if(mouse->leftDown()){
+			target += (REST_RAD*3.f - target) * d;
+		}
+
+		
+		//coords[i].y += c*0.5f;
+		coords[i].y += (target - coords[i].y) * 0.1f;
+		coords[i].y = glm::clamp(coords[i].y, REST_RAD*0.25f, REST_RAD*3.f);
+
+		Vertex & v = meshThing->vertices.at(i+1);
+		v.x = glm::cos(coords[i].x) * coords[i].y;
+		v.y = glm::sin(coords[i].x) * coords[i].y;
+		v.blue = 1.f - damage[i];
+		v.green = (v.red + v.blue)*0.5f;
+		//v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
+		//v.blue = d;
+		//v.green = d;
+
+	}
+	meshThing->dirty = true;
+
+
+
+
+
+	addBullet();
+
+	for(signed long int i = bullets.size()-1; i >= 0; --i){
+		Bullet * b = bullets.at(i);
+		bool collision = b->r < b->polar->y + BULLET_RAD;
+		bool destroy = false;
+		if(collision){
+			if(!b->reverse){
+				if(b->polar->y > REST_RAD*1.25f){
+					b->reverse = true;
+					b->r = b->polar->y + BULLET_RAD;
+					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
+					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
+					score += enemy.difficulty;
+				}else{
+					if(!b->hit){
+						b->hit = true;
+						b->polar->y -= 0.5f;
+						b->polar->y = glm::max(b->polar->y, 0.f);
+						damage[b->idx] += 0.3f;
+						// do a thing
+						health -= 0.01f;
+						if(damage[b->idx] > 1){
+							damage[b->idx] = 1.f;
+						}
+						hit->restart();
+						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
+						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
+					}
+				}
+			}
+		}
+		
+		if(b->hit){
+			if(b->r < 0){
+				destroy = true;
+			}
+		}else if(b->reverse){
+			if(b->r > 5.f){
+				destroy = true;
+			}
+		}
+
+		if( destroy ){
+			bullets.erase(bullets.begin() + i);
+			childTransform->removeChild(b->firstParent());
+			delete b->firstParent();
 		}
 	}
 
-
-	if(keyboard->keyJustDown(GLFW_KEY_SPACE)){
-		player->breakLimb();
+	if(health < 0){
+		health = 0;
 	}
+	heart->background->meshTransform->scale(health+heartBeatT*0.1f, false);
+		MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + sweet::NumberUtils::randomFloat(-(1.f-health),(1.f-health)) );
+
+
+	// Scene update
+	MY_Scene_Base::update(_step);
 }
 
-void MY_Scene_Main::enableDebug(){
-	MY_Scene_Base::enableDebug();
-	box2dDebugDrawer->drawing = true;
-	childTransform->addChildAtIndex(box2dDebugDrawer, -1, false); // make sure the debug drawer is the last thing drawn
+void MY_Scene_Main::render(sweet::MatrixStack * _matrixStack, RenderOptions * _renderOptions){
+	// keep our screen framebuffer up-to-date with the current viewport
+	_renderOptions->setClearColour(0,0,0,0.15f);
+	screenFBO->resize(_renderOptions->viewPortDimensions.width, _renderOptions->viewPortDimensions.height);
+
+	// bind our screen framebuffer
+	FrameBufferInterface::pushFbo(screenFBO);
+	// render the scene
+	glEnable(GL_LINE_SMOOTH);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	_renderOptions->clear();
+	Scene::render(_matrixStack, _renderOptions);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	uiLayer->render(_matrixStack, _renderOptions);
+	// unbind our screen framebuffer, rebinding the previously bound framebuffer
+	// since we didn't have one bound before, this will be the default framebuffer (i.e. the one visible to the player)
+	FrameBufferInterface::popFbo();
+
+	// render our screen framebuffer using the standard render surface
+	//screenSurface->render(MY_ResourceManager::globalAssets->getTexture("DEFAULT")->texture->textureId);
+	screenSurface->render(screenFBO->getTextureId(), false);
+
+	// render the uiLayer after the screen surface in order to avoid hiding it through shader code
+	//uiLayer->render(_matrixStack, _renderOptions);
 }
-void MY_Scene_Main::disableDebug(){
-	MY_Scene_Base::disableDebug();
-	box2dDebugDrawer->drawing = false;
+
+void MY_Scene_Main::load(){
+	MY_Scene_Base::load();	
+
+	screenSurface->load();
+	screenFBO->load();
+}
+
+void MY_Scene_Main::unload(){
+	screenFBO->unload();
+	screenSurface->unload();
+
+	MY_Scene_Base::unload();	
+}
+
+void MY_Scene_Main::addBullet(){
+	enemy.bulletsFired++;
+
+	bool changeMode = (enemy.bulletsFired % 60 <= enemy.difficulty) ? sweet::NumberUtils::randomBool() : false;
+
+	enemy.difficulty = glm::max(1.f, glm::floor(enemy.bulletsFired / 1200.f));
+
+	enemy.i += enemy.dir/6.f;
+	enemy.i += sweet::NumberUtils::randomInt(-enemy.randomness,enemy.randomness);
+
+	if(shooting && enemy.bulletsFired % enemy.stagger == 0){
+		int idx = enemy.i;
+		idx += enemy.offset;
+		while(idx < 1){
+			idx += NUM_VERTS;
+		}while(idx > NUM_VERTS){
+			idx -= NUM_VERTS;
+		}
+
+		Bullet * b = new Bullet(baseShader);
+		b->idx = idx-1;
+		b->v = &meshThing->vertices.at(idx);
+		b->polar = &coords[idx-1];
+
+		childTransform->addChild(b);
+		b->firstParent()->translate(glm::cos(b->polar->x) * b->r, glm::sin(b->polar->x) * b->r, 0, false);
+
+		bullets.push_back(b);
+	}
+		
+	if(changeMode){
+		enemy.dir = sweet::NumberUtils::randomFloat(-enemy.difficulty, enemy.difficulty);
+		enemy.offset = sweet::NumberUtils::randomInt(-NUM_VERTS/4, NUM_VERTS/4);
+		enemy.randomness = sweet::NumberUtils::randomInt(0, enemy.difficulty);
+		if(enemy.dir == 0 && enemy.randomness == 0){
+			if(sweet::NumberUtils::randomBool()){
+				enemy.dir = sweet::NumberUtils::randomBool() ? -1 : 1;
+			}else{
+				enemy.randomness = 1;
+			}
+		}
+		enemy.stagger = sweet::NumberUtils::randomInt(1,3);
+	}
 }
