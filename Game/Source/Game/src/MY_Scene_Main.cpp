@@ -122,9 +122,9 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	shoot = new Timeout(0.32f, [this](sweet::Event * _event){	
 		shooting = !shooting;
 		if(shooting){
-			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 2.5f);
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 5.f);
 		}else{
-			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 1.5f);
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 2.5f);
 		}
 		shoot->restart();
 	});
@@ -163,17 +163,16 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	vl->setBackgroundColour(0.5,0.49,0,1);
 	vl->marginBottom.setRationalSize(0.05f, &vl->height);
 	vl->marginLeft.setRationalSize(0.05f, &vl->width);
+	vl->setPadding(0.01f);
 
 	vl->setRenderMode(kTEXTURE);
 
 	TextLabelControlled * txtScore = new TextLabelControlled(&score, 0, FLT_MAX, uiLayer->world, font, textShader);
 	txtScore->prefix = "PTS: ";
 	vl->addChild(txtScore);
-	txtScore->setPadding(0.01f);
 	TextLabelControlled * txtDifficulty = new TextLabelControlled(&enemy.difficulty, 0, FLT_MAX, uiLayer->world, font, textShader);
 	txtDifficulty->prefix = "LVL: ";
 	vl->addChild(txtDifficulty);
-	txtDifficulty->setPadding(0.01f);
 }
 
 MY_Scene_Main::~MY_Scene_Main(){
