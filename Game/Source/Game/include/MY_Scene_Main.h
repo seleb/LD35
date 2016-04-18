@@ -2,6 +2,7 @@
 
 #include <MY_Scene_Base.h>
 #include <OpenALSound.h>
+#include <sweet\UI.h>
 
 class RenderSurface;
 class StandardFrameBuffer;
@@ -12,6 +13,11 @@ class Bullet;
 
 class MY_Scene_Main : public MY_Scene_Base{
 public:
+	bool gameStarted, gameOver;
+
+	NodeUI * startScreen, * endScreen;
+	TextArea * endText;
+
 	Shader * screenSurfaceShader;
 	RenderSurface * screenSurface;
 	StandardFrameBuffer * screenFBO;
@@ -52,4 +58,6 @@ public:
 		int stagger;
 	} enemy;
 	float score;
+
+	void reset();
 };

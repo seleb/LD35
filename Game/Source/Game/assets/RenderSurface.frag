@@ -20,7 +20,7 @@ float rand(float x, float y){
 
 void main() {
     vec4 col = vec4(texture(texFramebuffer, Texcoord));
-    float m = distance(vec2(0.5,0.5), Texcoord);
+    float m = abs(Texcoord.x - Texcoord.y);
     m -= 0.25;
     m *= 0.01;
     m = max(0.0001, m);
@@ -39,6 +39,7 @@ void main() {
     }
 
     outColor = length(col.rgb) >= length(vec3(0.5)) ? vec4(1) : vec4(0,0,0,m*5+0.25);
+    //return;
     if(r > 0){
 	    outColor.g *= col.g;
 	    outColor.b *= col.b;

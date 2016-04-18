@@ -8,11 +8,21 @@
   		"src": "overlay.png",
   		"generateMipmaps":false
   	},{
-  		"type": "texture",
-  		"id": "heart",
-  		"src": "heart.png",
-  		"generateMipmaps":false
-  	}
+      "type": "texture",
+      "id": "heart",
+      "src": "heart.png",
+      "generateMipmaps":false
+    },{
+      "type": "texture",
+      "id": "startScreen",
+      "src": "startScreen.png",
+      "generateMipmaps":false
+    },{
+      "type": "texture",
+      "id": "endScreen",
+      "src": "endScreen.png",
+      "generateMipmaps":false
+    }
 
 
 

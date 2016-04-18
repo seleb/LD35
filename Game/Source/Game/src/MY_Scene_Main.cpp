@@ -10,7 +10,6 @@
 
 #include <Bullet.h>
 #include <AutoMusic.h>
-#include <sweet\UI.h>
 
 MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	MY_Scene_Base(_game),
@@ -19,16 +18,11 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	screenFBO(new StandardFrameBuffer(true)),
 	health(1),
 	shooting(false),
-	score(0)
+	score(0),
+	gameStarted(false),
+	gameOver(false)
 {
-	
-	enemy.i = 1;
-	enemy.dir = 1;
-	enemy.offset = false;
-	enemy.randomness = 1;
-	enemy.difficulty = -1;
-	enemy.bulletsFired = 0;
-	enemy.stagger = 1;
+	reset();
 
 	// set-up some UI to toggle between results
 	//uiLayer->addMouseIndicator();
@@ -160,7 +154,7 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	VerticalLinearLayout * vl = new VerticalLinearLayout(uiLayer->world);
 	uiLayer->addChild(vl);
 	vl->background->setVisible(true);
-	vl->setBackgroundColour(0.5,0.49,0,1);
+	vl->setBackgroundColour(0,0,0,1);
 	vl->marginBottom.setRationalSize(0.05f, &vl->height);
 	vl->marginLeft.setRationalSize(0.05f, &vl->width);
 	vl->setPadding(0.01f);
@@ -173,6 +167,50 @@ MY_Scene_Main::MY_Scene_Main(Game * _game) :
 	TextLabelControlled * txtDifficulty = new TextLabelControlled(&enemy.difficulty, 0, FLT_MAX, uiLayer->world, font, textShader);
 	txtDifficulty->prefix = "LVL: ";
 	vl->addChild(txtDifficulty);
+
+
+
+
+	startScreen = new NodeUI(uiLayer->world);
+	startScreen->setRationalHeight(1.f, uiLayer);
+	startScreen->setRationalWidth(1.f, uiLayer);
+	uiLayer->addChild(startScreen);
+	startScreen->background->mesh->setScaleMode(GL_NEAREST);
+	startScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("startScreen")->texture);
+	startScreen->setMouseEnabled(true);
+	startScreen->eventManager->addEventListener("click", [this](sweet::Event * _event){
+		gameStarted = true;
+		startScreen->setVisible(false);
+		startScreen->setMouseEnabled(false);
+	});
+
+	endScreen = new NodeUI(uiLayer->world);
+	endScreen->setRationalHeight(1.f, uiLayer);
+	endScreen->setRationalWidth(1.f, uiLayer);
+	uiLayer->addChild(endScreen);
+	endScreen->background->mesh->setScaleMode(GL_NEAREST);
+	endScreen->background->mesh->pushTexture2D(MY_ResourceManager::globalAssets->getTexture("endScreen")->texture);
+	endScreen->setRenderMode(kTEXTURE);
+	endScreen->eventManager->addEventListener("click", [this](sweet::Event * _event){
+		gameOver = false;
+		endScreen->setVisible(false);
+		endScreen->setMouseEnabled(false);
+		startScreen->setVisible(true);
+		startScreen->setMouseEnabled(true);
+	});
+
+	endText = new TextArea(uiLayer->world, font, textShader);
+	endText->setRationalHeight(1.f, endScreen);
+	endText->setRationalWidth(1.f, endScreen);
+	endScreen->addChild(endText);
+	endText->setWrapMode(kWORD);
+	endText->horizontalAlignment = kCENTER;
+	endText->verticalAlignment = kMIDDLE;
+
+
+	endScreen->setVisible(false);
+
+
 }
 
 MY_Scene_Main::~MY_Scene_Main(){
@@ -210,127 +248,136 @@ void MY_Scene_Main::update(Step * _step){
 	}
 
 	if(keyboard->keyJustDown(GLFW_KEY_R)){
-		health = 1.f;
-		for(auto & d : damage){
-			d = 0.f;
-		}
+		reset();
 	}
 #endif
 	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("deflect")->sound->getGain(false)-0.1f));
 	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("hit")->sound->getGain(false)-0.2f));
 
+	if(gameStarted && !gameOver){
+		glm::vec2 sd = sweet::getWindowDimensions();
 
-	glm::vec2 sd = sweet::getWindowDimensions();
+		glm::vec3 mousePos(mouse->mouseX()/sd.x - 0.5f, mouse->mouseY()/sd.y - 0.5f, 0.5);
+		mousePos.z = 0;
 
-	glm::vec3 mousePos(mouse->mouseX()/sd.x - 0.5f, mouse->mouseY()/sd.y - 0.5f, 0.5);
-	mousePos.z = 0;
-
-	for(unsigned long int i = 0; i < NUM_VERTS; ++i){
-		float g = glm::atan(mousePos.x, mousePos.y) + glm::pi<float>()/2.f;
-		while(g < 0){
-			g += glm::pi<float>() * 2.f;
-		}while(g > glm::pi<float>() * 2.f){
-			g -= glm::pi<float>() * 2.f;
-		}
-
-
-		float d = g - coords[i].x;
-		while(d < -glm::pi<float>()){
-			d += glm::pi<float>() * 2.f;
-		}while(d > glm::pi<float>()){
-			d -= glm::pi<float>() * 2.f;
-		}
-		d *= 0.15f;
-		d /= glm::pi<float>()*2.f/NUM_VERTS;
-		d = glm::min(1.f, glm::abs(d));
-		d = Easing::easeInOutBounce(d, 1, -1, 1);
+		for(unsigned long int i = 0; i < NUM_VERTS; ++i){
+			float g = glm::atan(mousePos.x, mousePos.y) + glm::pi<float>()/2.f;
+			while(g < 0){
+				g += glm::pi<float>() * 2.f;
+			}while(g > glm::pi<float>() * 2.f){
+				g -= glm::pi<float>() * 2.f;
+			}
 
 
-		float target = REST_RAD*(1.f - damage[i])*(health*0.75f+0.25f);
+			float d = g - coords[i].x;
+			while(d < -glm::pi<float>()){
+				d += glm::pi<float>() * 2.f;
+			}while(d > glm::pi<float>()){
+				d -= glm::pi<float>() * 2.f;
+			}
+			d *= 0.15f;
+			d /= glm::pi<float>()*2.f/NUM_VERTS;
+			d = glm::min(1.f, glm::abs(d));
+			d = Easing::easeInOutBounce(d, 1, -1, 1);
 
-		/*if(mouse->rightDown()){
-			target += (REST_RAD*0.25f - target) * d;
-		}else */if(mouse->leftDown()){
-			target += (REST_RAD*3.f - target) * d;
-		}
+
+			float target = REST_RAD*(1.f - damage[i])*(health*0.75f+0.25f);
+
+			/*if(mouse->rightDown()){
+				target += (REST_RAD*0.25f - target) * d;
+			}else */if(mouse->leftDown()){
+				target += (REST_RAD*3.f - target) * d;
+			}
 
 		
-		//coords[i].y += c*0.5f;
-		coords[i].y += (target - coords[i].y) * 0.1f;
-		coords[i].y = glm::clamp(coords[i].y, REST_RAD*0.25f, REST_RAD*3.f);
+			//coords[i].y += c*0.5f;
+			coords[i].y += (target - coords[i].y) * 0.1f;
+			coords[i].y = glm::clamp(coords[i].y, REST_RAD*0.25f, REST_RAD*3.f);
 
-		Vertex & v = meshThing->vertices.at(i+1);
-		v.x = glm::cos(coords[i].x) * coords[i].y;
-		v.y = glm::sin(coords[i].x) * coords[i].y;
-		v.blue = 1.f - damage[i];
-		v.green = (v.red + v.blue)*0.5f;
-		//v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
-		//v.blue = d;
-		//v.green = d;
+			Vertex & v = meshThing->vertices.at(i+1);
+			v.x = glm::cos(coords[i].x) * coords[i].y;
+			v.y = glm::sin(coords[i].x) * coords[i].y;
+			v.blue = 1.f - damage[i];
+			v.green = (v.red + v.blue)*0.5f;
+			//v.blue = v.red = v.green = coords[i].y/1.5f-0.5f;
+			//v.blue = d;
+			//v.green = d;
 
-	}
-	meshThing->dirty = true;
-
-
+		}
+		meshThing->dirty = true;
 
 
 
-	addBullet();
 
-	for(signed long int i = bullets.size()-1; i >= 0; --i){
-		Bullet * b = bullets.at(i);
-		bool collision = b->r < b->polar->y + BULLET_RAD;
-		bool destroy = false;
-		if(collision){
-			if(!b->reverse){
-				if(b->polar->y > REST_RAD*1.25f){
-					b->reverse = true;
-					b->r = b->polar->y + BULLET_RAD;
-					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
-					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
-					score += enemy.difficulty;
-				}else{
-					if(!b->hit){
-						b->hit = true;
-						b->polar->y -= 0.5f;
-						b->polar->y = glm::max(b->polar->y, 0.f);
-						damage[b->idx] += 0.3f;
-						// do a thing
-						health -= 0.01f;
-						if(damage[b->idx] > 1){
-							damage[b->idx] = 1.f;
+
+		addBullet();
+
+		for(signed long int i = bullets.size()-1; i >= 0; --i){
+			Bullet * b = bullets.at(i);
+			bool collision = b->r < b->polar->y + BULLET_RAD;
+			bool destroy = false;
+			if(collision){
+				if(!b->reverse){
+					if(b->polar->y > REST_RAD*1.25f){
+						b->reverse = true;
+						b->r = b->polar->y + BULLET_RAD;
+						MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
+						MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
+						score += enemy.difficulty;
+					}else{
+						if(!b->hit){
+							b->hit = true;
+							b->polar->y -= 0.5f;
+							b->polar->y = glm::max(b->polar->y, 0.f);
+							damage[b->idx] += 0.3f;
+							// do a thing
+							health -= 0.01f;
+							if(damage[b->idx] > 1){
+								damage[b->idx] = 1.f;
+							}
+							hit->restart();
+							MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
+							MY_ResourceManager::globalAssets->getAudio("hit")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
 						}
-						hit->restart();
-						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
-						MY_ResourceManager::globalAssets->getAudio("hit")->sound->setPitch(pow(2,AutoMusic::scales[(b->idx%8)]/13.f));
 					}
 				}
 			}
-		}
 		
-		if(b->hit){
-			if(b->r < 0){
-				destroy = true;
+			if(b->hit){
+				if(b->r < 0){
+					destroy = true;
+				}
+			}else if(b->reverse){
+				if(b->r > 5.f){
+					destroy = true;
+				}
 			}
-		}else if(b->reverse){
-			if(b->r > 5.f){
-				destroy = true;
+
+			if( destroy ){
+				bullets.erase(bullets.begin() + i);
+				childTransform->removeChild(b->firstParent());
+				delete b->firstParent();
 			}
 		}
 
-		if( destroy ){
-			bullets.erase(bullets.begin() + i);
-			childTransform->removeChild(b->firstParent());
-			delete b->firstParent();
+		if(health < 0){
+			health = 0;
+			gameOver = true;
+			
+			endScreen->setVisible(true);
+			endScreen->setMouseEnabled(true);
+
+			std::wstringstream ss;
+			ss << "GAME OVER" << std::endl << "Final Score: " << glm::ceil(score) << std::endl << "Final LVL: " << glm::round(enemy.difficulty);
+			endText->setText(ss.str());
+			reset();
 		}
+		heart->background->meshTransform->scale(health+heartBeatT*0.1f, false);
+	
 	}
 
-	if(health < 0){
-		health = 0;
-	}
-	heart->background->meshTransform->scale(health+heartBeatT*0.1f, false);
-		MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + sweet::NumberUtils::randomFloat(-(1.f-health),(1.f-health)) );
-
+	
+	MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + sweet::NumberUtils::randomFloat(-(1.f-health),(1.f-health)) );
 
 	// Scene update
 	MY_Scene_Base::update(_step);
@@ -419,4 +466,30 @@ void MY_Scene_Main::addBullet(){
 		}
 		enemy.stagger = sweet::NumberUtils::randomInt(1,3);
 	}
+}
+
+void MY_Scene_Main::reset(){
+	for(signed long int i = bullets.size()-1; i >= 0; --i){
+		childTransform->removeChild(bullets.at(i)->firstParent());
+		delete bullets.at(i)->firstParent();
+		bullets.erase(bullets.begin() + i);
+	}
+	bullets.clear();
+
+	score = 0;
+
+	health = 1.f;
+	for(auto & d : damage){
+		d = 0.f;
+	}
+
+
+	enemy.i = 1;
+	enemy.dir = 1;
+	enemy.offset = false;
+	enemy.randomness = 1;
+	enemy.difficulty = -1;
+	enemy.bulletsFired = 0;
+	enemy.stagger = 1;
+	shooting = false;
 }
