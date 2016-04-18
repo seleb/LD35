@@ -84,15 +84,17 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 
 
 	heartBeatT = 0;
-	heartbeat = new Timeout(0.32f, [this](sweet::Event * _event){	
-		health += 0.1f;
-		if(health > 1){
-			health = 1;
-		}
-		for(auto & d : damage){
-			d -= 0.1f;
-			if(d < 0){
-				d = 0;
+	heartbeat = new Timeout(0.32f, [this](sweet::Event * _event){
+		if(!mouse->leftDown()){
+			health += 0.05f;
+			if(health > 1){
+				health = 1;
+			}
+			for(auto & d : damage){
+				d -= 0.15f;
+				if(d < 0){
+					d = 0;
+				}
 			}
 		}
 		heartbeat->restart();
@@ -111,13 +113,40 @@ MY_Scene_ScreenShaders::MY_Scene_ScreenShaders(Game * _game) :
 		if(shooting){
 			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 2.5f);
 		}else{
-			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 1.f);
+			shoot->targetSeconds = sweet::NumberUtils::randomFloat(0.5f, 1.5f);
 		}
 		shoot->restart();
 	});
 	
 	childTransform->addChild(shoot, false);
 	shoot->start();
+
+	
+	hit = new Timeout(0.32f, [this](sweet::Event * _event){
+		//gameCam->pitch = 0;
+		//gameCam->yaw = -90;
+		gameCam->roll = 0;
+		MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1);
+	});
+	hit->eventManager->addEventListener("progress", [this](sweet::Event * _event){
+		float p = 1.f-_event->getFloatData("progress");
+		//gameCam->pitch = sweet::NumberUtils::randomFloat(-p,p)*15;
+		//gameCam->yaw = -90;
+		gameCam->roll = (sweet::NumberUtils::randomFloat(-p,p))*5;
+		//MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + (1.f-sweet::NumberUtils::randomFloat(-p,p)));
+	});
+	hit->eventManager->addEventListener("start", [this](sweet::Event * _event){	
+		MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(1.f);
+	});
+	
+	childTransform->addChild(hit, false);
+	
+
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->play(true);
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(0);
+
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->play(true);
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(0);
 }
 
 MY_Scene_ScreenShaders::~MY_Scene_ScreenShaders(){
@@ -161,6 +190,8 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		}
 	}
 #endif
+	MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("deflect")->sound->getGain(false)-0.1f));
+	MY_ResourceManager::globalAssets->getAudio("hit")->sound->setGain(glm::max(0.f, MY_ResourceManager::globalAssets->getAudio("hit")->sound->getGain(false)-0.2f));
 
 
 	glm::vec2 sd = sweet::getWindowDimensions();
@@ -186,14 +217,14 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		d *= 0.15f;
 		d /= glm::pi<float>()*2.f/NUM_VERTS;
 		d = glm::min(1.f, glm::abs(d));
-		d = Easing::easeInOutCubic(d, 1, -1, 1);
+		d = Easing::easeInOutBounce(d, 1, -1, 1);
 
 
-		float target = REST_RAD*(1.f - damage[i]);
+		float target = REST_RAD*(1.f - damage[i])*(health*0.75f+0.25f);
 
-		if(mouse->rightDown()){
+		/*if(mouse->rightDown()){
 			target += (REST_RAD*0.25f - target) * d;
-		}else if(mouse->leftDown()){
+		}else */if(mouse->leftDown()){
 			target += (REST_RAD*3.f - target) * d;
 		}
 
@@ -222,24 +253,26 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 
 	for(signed long int i = bullets.size()-1; i >= 0; --i){
 		Bullet * b = bullets.at(i);
-		bool hit = b->r < b->polar->y + BULLET_RAD;
+		bool collision = b->r < b->polar->y + BULLET_RAD;
 		bool destroy = false;
-		if(hit){
+		if(collision){
 			if(!b->reverse){
 				if(b->polar->y > REST_RAD*1.25f){
 					b->reverse = true;
 					b->r = b->polar->y + BULLET_RAD;
+					MY_ResourceManager::globalAssets->getAudio("deflect")->sound->setGain(1.f);
 				}else{
 					if(!b->hit){
 						b->hit = true;
 						b->polar->y -= 0.5f;
 						b->polar->y = glm::max(b->polar->y, 0.f);
-						damage[b->idx] += 0.25f;
+						damage[b->idx] += 0.3f;
 						// do a thing
-						health -= 0.05f;
+						health -= 0.01f;
 						if(damage[b->idx] > 1){
 							damage[b->idx] = 1.f;
 						}
+						hit->restart();
 					}
 				}
 			}
@@ -266,6 +299,7 @@ void MY_Scene_ScreenShaders::update(Step * _step){
 		health = 0;
 	}
 	heart->background->meshTransform->scale(health+heartBeatT*0.1f, false);
+		MY_ResourceManager::globalAssets->getAudio("bgm")->sound->setPitch(1 + sweet::NumberUtils::randomFloat(-(1.f-health),(1.f-health)) );
 
 
 	// Scene update

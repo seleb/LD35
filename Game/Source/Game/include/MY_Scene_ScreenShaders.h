@@ -23,7 +23,7 @@ public:
 	std::vector<Bullet *> bullets;
 	NodeUI * heart;
 	float health;
-	Timeout * heartbeat, * shoot;
+	Timeout * heartbeat, * shoot, * hit;
 	float heartBeatT;
 	bool shooting;
 

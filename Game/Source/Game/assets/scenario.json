@@ -55,10 +55,29 @@
 
 
   	,
-  	{
-  		"type": "audio",
-  		"id": "bgm",
-  		"src": "song.wav"
-  	}
+    {
+      "type": "audio",
+      "id": "bgm",
+      "src": "song.ogg",
+      "category":"music",
+      "stream":false,
+      "positional":false
+    },
+    {
+      "type": "audio",
+      "id": "hit",
+      "src": "hit.ogg",
+      "category":"sfx",
+      "stream":false,
+      "positional":false
+    },
+    {
+      "type": "audio",
+      "id": "deflect",
+      "src": "deflect.ogg",
+      "category":"sfx",
+      "stream":false,
+      "positional":false
+    }
   ]
 }
